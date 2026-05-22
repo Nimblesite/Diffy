@@ -1,5 +1,7 @@
 # Diffy — Agent Instructions
 
+<!-- agent-pmo:74cf183 -->
+
 ⚠️ KILLING A VSCODE PROCESS — EVEN IN THE BROWSER — WILL BE MET WITH INSTANT, EXTREME VIOLENCE!
 
 > ⚠️ **TOKEN DISCIPLINE.** Check file size first. `Grep` over `Read`. Use `offset`/`limit`.
