@@ -1,5 +1,5 @@
-export type Ok<T> = { readonly ok: true; readonly value: T };
-export type Err<E> = { readonly ok: false; readonly error: E };
+export interface Ok<T> { readonly ok: true; readonly value: T }
+export interface Err<E> { readonly ok: false; readonly error: E }
 export type Result<T, E> = Ok<T> | Err<E>;
 
 export const ok = <T>(value: T): Ok<T> => ({ ok: true, value });
@@ -20,3 +20,15 @@ export const andThen = <T, U, E>(
 
 export const unwrapOr = <T, E>(r: Result<T, E>, fallback: T): T =>
   r.ok ? r.value : fallback;
+
+export function expectOk<T, E>(r: Result<T, E>): asserts r is Ok<T> {
+  if (!r.ok) {
+    throw new Error(`expected Ok, got Err: ${JSON.stringify(r.error)}`);
+  }
+}
+
+export function expectErr<T, E>(r: Result<T, E>): asserts r is Err<E> {
+  if (r.ok) {
+    throw new Error(`expected Err, got Ok: ${JSON.stringify(r.value)}`);
+  }
+}

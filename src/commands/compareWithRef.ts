@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { REV_KINDS, TITLE_PREFIX } from '../constants';
 import type { RefType } from '../git/types';
 import type { MementoStore } from '../state';
 import { extractHistoryItemSha } from './historyItem';
@@ -10,7 +11,7 @@ import {
 import { drillIntoFiles, pickRefAsSha, sideAFromSha } from './flow';
 
 const NOT_FROM_HISTORY =
-  'Diffy: this command must be invoked from the SCM history view.';
+  `${TITLE_PREFIX} this command must be invoked from the SCM history view.`;
 
 const handler = async ({
   deps,
@@ -39,7 +40,7 @@ const handler = async ({
     repo,
     repoRoot: vs.value.rootUri.fsPath,
     revA: sideAFromSha(sha),
-    revB: { kind: 'commit', sha: target.value },
+    revB: { kind: REV_KINDS.commit, sha: target.value },
     state: deps.state,
     output: deps.output,
   });
@@ -52,4 +53,4 @@ export const makeCompareWithRef = ({
   deps: CommandDeps & { readonly state: MementoStore };
   filter: RefType;
 }) =>
-  async (arg: unknown): Promise<void> => handler({ deps, arg, filter });
+  async (arg: unknown): Promise<void> => { await handler({ deps, arg, filter }); };

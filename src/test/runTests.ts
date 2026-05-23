@@ -15,7 +15,8 @@ const ensureSeedRepo = (): void => {
   }
   const r = spawnSync('bash', [seedScript], { stdio: 'inherit' });
   if (r.status !== 0) {
-    throw new Error(`seed.sh failed with exit ${r.status ?? '?'}`);
+    const exitLabel = r.status === null ? '?' : r.status.toString();
+    throw new Error(`seed.sh failed with exit ${exitLabel}`);
   }
 };
 

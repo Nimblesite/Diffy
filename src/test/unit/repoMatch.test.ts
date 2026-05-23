@@ -1,11 +1,19 @@
 import { strict as assert } from 'node:assert';
 import { findRepoForUri, matchRepoByFsPath } from '../../git/repoMatch';
 
-const repoAt = (fsPath: string) => ({ rootUri: { fsPath } });
+interface UriLike {
+  readonly fsPath: string;
+}
+interface RepoLike {
+  readonly rootUri: UriLike;
+}
+
+const repoAt = (fsPath: string): RepoLike => ({ rootUri: { fsPath } });
 
 describe('matchRepoByFsPath', () => {
   it('returns undefined for an empty repository list', () => {
-    assert.equal(matchRepoByFsPath([], '/anywhere'), undefined);
+    const result = matchRepoByFsPath<RepoLike>([], '/anywhere');
+    assert.equal(result, undefined);
   });
 
   it('returns the only repository when the target is inside its root', () => {
@@ -21,14 +29,20 @@ describe('matchRepoByFsPath', () => {
   it('prefers the longest matching root for nested repositories', () => {
     const outer = repoAt('/Users/me/repo');
     const inner = repoAt('/Users/me/repo/sub/inner');
-    const result = matchRepoByFsPath([outer, inner], '/Users/me/repo/sub/inner/file.txt');
+    const result = matchRepoByFsPath(
+      [outer, inner],
+      '/Users/me/repo/sub/inner/file.txt',
+    );
     assert.strictEqual(result, inner);
   });
 
   it('order of the list does not affect the longest-match result', () => {
     const outer = repoAt('/Users/me/repo');
     const inner = repoAt('/Users/me/repo/sub/inner');
-    const result = matchRepoByFsPath([inner, outer], '/Users/me/repo/sub/inner/file.txt');
+    const result = matchRepoByFsPath(
+      [inner, outer],
+      '/Users/me/repo/sub/inner/file.txt',
+    );
     assert.strictEqual(result, inner);
   });
 });
@@ -38,8 +52,8 @@ describe('findRepoForUri', () => {
     const repo = repoAt('/Users/me/repo');
     const uri = { fsPath: '/Users/me/repo/file.txt' };
     const api = {
-      repositories: [] as readonly typeof repo[],
-      getRepository: (_u: typeof uri) => repo,
+      repositories: [] as readonly RepoLike[],
+      getRepository: (_u: UriLike) => repo,
     };
     const result = findRepoForUri(api, uri);
     assert.strictEqual(result, repo);
@@ -55,10 +69,9 @@ describe('findRepoForUri', () => {
 
   it('returns undefined when getRepository returns null', () => {
     const uri = { fsPath: '/Users/me/repo/file.txt' };
-    const repo = repoAt('/Users/me/repo');
     const api = {
-      repositories: [] as readonly typeof repo[],
-      getRepository: (_u: typeof uri) => null,
+      repositories: [] as readonly RepoLike[],
+      getRepository: (_u: UriLike) => null,
     };
     const result = findRepoForUri(api, uri);
     assert.equal(result, undefined);
@@ -70,6 +83,9 @@ describe('findRepoForUri', () => {
     const api = { repositories: [a, b] };
     assert.strictEqual(findRepoForUri(api, { fsPath: '/Users/me/repo-b/x' }), b);
     assert.strictEqual(findRepoForUri(api, { fsPath: '/Users/me/repo-a/y' }), a);
-    assert.equal(findRepoForUri(api, { fsPath: '/Users/me/somewhere-else' }), undefined);
+    assert.equal(
+      findRepoForUri(api, { fsPath: '/Users/me/somewhere-else' }),
+      undefined,
+    );
   });
 });

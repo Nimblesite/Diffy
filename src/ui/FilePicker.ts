@@ -20,7 +20,7 @@ const toItem = (entry: FileEntry): FileItem => ({
   entry,
 });
 
-export const pickFiles = ({
+export const pickFiles = async ({
   entries,
   onPick,
   placeholder,
@@ -29,12 +29,12 @@ export const pickFiles = ({
   onPick: (entry: FileEntry) => void | Promise<void>;
   placeholder?: string;
 }): Promise<void> =>
-  showStayOpenPick<FileItem>(
+  { await showStayOpenPick<FileItem>(
     {
       items: entries.map(toItem),
       placeholder: placeholder ?? 'Pick a file to diff (Esc to close)',
       matchOnDescription: true,
       matchOnDetail: true,
     },
-    (item) => onPick(item.entry),
-  );
+    async (item) => { await onPick(item.entry); },
+  ); };

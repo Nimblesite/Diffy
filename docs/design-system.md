@@ -58,6 +58,15 @@ Example body copy:
 
 The Diffy mark should communicate comparison, pairing, and code review without looking like a separate IDE.
 
+Source assets:
+
+- [Mark SVG](assets/diffy-mark.svg)
+- [Logo SVG](assets/diffy-logo.svg)
+- [128px mark PNG](assets/diffy-mark-128.png)
+- [256px mark PNG](assets/diffy-mark-256.png)
+- [768px logo PNG](assets/diffy-logo-768.png)
+- Root extension icon: `icon.png`
+
 Preferred concepts:
 
 - Two adjacent file panes with a narrow comparison gutter.

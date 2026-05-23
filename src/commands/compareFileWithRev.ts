@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
+import { REV_KINDS, TITLE_PREFIX } from '../constants';
 import type { GitRepo } from '../git/GitRepo';
-import type { RefType, Sha } from '../git/types';
+import type { Sha } from '../git/types';
 import type { Result } from '../result';
 import { err, ok } from '../result';
 import { CANCELLED, type Cancelled } from '../ui/cancelled';
@@ -13,10 +14,18 @@ import {
 } from './shared';
 import { pickRefAsSha, reportGitError, sideAFromSha } from './flow';
 
-export type FileRevSource = 'commits' | RefType;
+export const FILE_REV_SOURCES = {
+  commits: 'commits',
+  branch: 'branch',
+  tag: 'tag',
+  other: 'other',
+} as const;
 
-const NO_EDITOR = 'Diffy: open a file first.';
-const NOT_IN_REPO = 'Diffy: file is not in a git repository.';
+export type FileRevSource = (typeof FILE_REV_SOURCES)[keyof typeof FILE_REV_SOURCES];
+
+const NO_EDITOR = `${TITLE_PREFIX} open a file first.`;
+const NOT_IN_REPO = `${TITLE_PREFIX} file is not in a git repository.`;
+const LOG_OP = 'log';
 
 const pickShaForFile = async ({
   repo,
@@ -27,10 +36,10 @@ const pickShaForFile = async ({
   source: FileRevSource;
   output: vscode.OutputChannel;
 }): Promise<Result<Sha, Cancelled>> => {
-  if (source === 'commits') {
+  if (source === FILE_REV_SOURCES.commits) {
     const log = await repo.log({});
     if (!log.ok) {
-      reportGitError({ output, op: 'log', e: log.error });
+      reportGitError({ output, op: LOG_OP, e: log.error });
       return err(CANCELLED);
     }
     const picked = await pickCommit({ commits: log.value });
@@ -39,7 +48,7 @@ const pickShaForFile = async ({
     }
     return ok(picked.value.sha);
   }
-  return pickRefAsSha({ repo, output, filter: source });
+  return await pickRefAsSha({ repo, output, filter: source });
 };
 
 const resolveTargetUri = (uri?: vscode.Uri): vscode.Uri | undefined =>
@@ -71,7 +80,7 @@ const handler = async ({
   }
   await openDiff({
     revA: sideAFromSha(sha.value),
-    revB: { kind: 'workingCopy' },
+    revB: { kind: REV_KINDS.workingCopy },
     repoRoot: vsRepo.rootUri.fsPath,
     relPath: vscode.workspace.asRelativePath(target, false),
   });
@@ -84,4 +93,4 @@ export const makeCompareFileWithRev = ({
   deps: CommandDeps;
   source: FileRevSource;
 }) =>
-  async (uri?: vscode.Uri): Promise<void> => handler({ deps, uri, source });
+  async (uri?: vscode.Uri): Promise<void> => { await handler({ deps, uri, source }); };

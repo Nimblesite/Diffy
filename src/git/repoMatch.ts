@@ -8,7 +8,7 @@ interface RepoLike<U extends UriLike> {
 
 interface ApiLike<U extends UriLike, R extends RepoLike<U>> {
   readonly repositories: readonly R[];
-  getRepository?(uri: U): R | null;
+  getRepository?: (uri: U) => R | null;
 }
 
 export const matchRepoByFsPath = <R extends RepoLike<UriLike>>(

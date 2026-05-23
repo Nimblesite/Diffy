@@ -1,4 +1,13 @@
-import { NUL, TAB, LF, REF_PREFIX_HEADS, REF_PREFIX_TAGS } from '../constants';
+import {
+  CHANGED_FILE_STATUSES,
+  GIT_ERROR_KINDS,
+  LF,
+  NUL,
+  REF_PREFIX_HEADS,
+  REF_PREFIX_TAGS,
+  REF_TYPES,
+  TAB,
+} from '../constants';
 import { type Result, ok, err } from '../result';
 import type {
   ChangedFile,
@@ -17,7 +26,7 @@ const CHAR_CODE_DIGIT_LO = 48;
 const CHAR_CODE_DIGIT_HI = 57;
 
 const errParse = (message: string): Result<never, GitError> =>
-  err({ kind: 'parseError', message });
+  err({ kind: GIT_ERROR_KINDS.parseError, message });
 
 const stripTrailingEmpty = (arr: readonly string[]): readonly string[] => {
   if (arr.length === 0) {return arr;}
@@ -35,9 +44,13 @@ const isAllDigits = (s: string): boolean => {
 };
 
 const refTypeFromName = (fullName: string): RefType => {
-  if (fullName.startsWith(REF_PREFIX_HEADS)) {return 'branch';}
-  if (fullName.startsWith(REF_PREFIX_TAGS)) {return 'tag';}
-  return 'other';
+  if (fullName.startsWith(REF_PREFIX_HEADS)) {
+    return REF_TYPES.branch;
+  }
+  if (fullName.startsWith(REF_PREFIX_TAGS)) {
+    return REF_TYPES.tag;
+  }
+  return REF_TYPES.other;
 };
 
 const parseLogRecord = (fields: readonly string[]): Result<Commit, GitError> => {
@@ -81,11 +94,18 @@ interface ParsedStatus {
 const parseStatusToken = (raw: string): Result<ParsedStatus, GitError> => {
   if (raw.length === 0) {return errParse('parseNameStatus: empty status token');}
   const first = raw.charAt(0);
-  if (first === 'A' || first === 'M' || first === 'D') {
+  if (
+    first === CHANGED_FILE_STATUSES.added ||
+    first === CHANGED_FILE_STATUSES.modified ||
+    first === CHANGED_FILE_STATUSES.deleted
+  ) {
     if (raw.length !== 1) {return errParse('parseNameStatus: extra chars on status');}
     return ok({ status: first, isRename: false });
   }
-  if (first === 'R' || first === 'C') {
+  if (
+    first === CHANGED_FILE_STATUSES.renamed ||
+    first === CHANGED_FILE_STATUSES.copied
+  ) {
     const digits = raw.slice(1);
     if (!isAllDigits(digits)) {return errParse('parseNameStatus: bad similarity');}
     return ok({ status: first, similarity: Number.parseInt(digits, 10), isRename: true });

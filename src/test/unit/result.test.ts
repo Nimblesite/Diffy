@@ -7,6 +7,8 @@ import {
   map,
   andThen,
   unwrapOr,
+  expectOk,
+  expectErr,
   type Result,
 } from '../../result';
 
@@ -14,27 +16,27 @@ describe('Result', () => {
   describe('ok / err constructors', () => {
     it('ok wraps the value and discriminates as ok=true', () => {
       const r = ok(42);
-      assert.equal(r.ok, true);
+      expectOk(r);
       assert.equal(r.value, 42);
     });
 
     it('err wraps the error and discriminates as ok=false', () => {
       const r = err('boom');
-      assert.equal(r.ok, false);
+      expectErr(r);
       assert.equal(r.error, 'boom');
     });
 
     it('ok preserves reference identity of the wrapped value', () => {
       const obj = { x: 1 };
       const r = ok(obj);
-      assert.equal(r.ok, true);
+      expectOk(r);
       assert.strictEqual(r.value, obj);
     });
 
     it('err preserves reference identity of the wrapped error', () => {
       const e = new Error('x');
       const r = err(e);
-      assert.equal(r.ok, false);
+      expectErr(r);
       assert.strictEqual(r.error, e);
     });
   });
@@ -72,36 +74,36 @@ describe('Result', () => {
   describe('map', () => {
     it('applies the function on Ok', () => {
       const r = map(ok(2), (n) => n * 3);
-      assert.equal(r.ok, true);
-      if (r.ok) {assert.equal(r.value, 6);}
+      expectOk(r);
+      assert.equal(r.value, 6);
     });
 
     it('passes Err through unchanged', () => {
       const original: Result<number, string> = err('bad');
       const r = map<number, number, string>(original, (n) => n * 3);
-      assert.equal(r.ok, false);
-      if (!r.ok) {assert.equal(r.error, 'bad');}
+      expectErr(r);
+      assert.equal(r.error, 'bad');
     });
 
     it('supports type-changing maps', () => {
-      const r = map(ok(5), (n) => `n=${n}`);
-      assert.equal(r.ok, true);
-      if (r.ok) {assert.equal(r.value, 'n=5');}
+      const r = map(ok(5), (n) => `n=${n.toString()}`);
+      expectOk(r);
+      assert.equal(r.value, 'n=5');
     });
   });
 
   describe('andThen', () => {
     it('chains Ok into another Ok', () => {
       const r = andThen(ok(2), (n) => ok(n + 1));
-      assert.equal(r.ok, true);
-      if (r.ok) {assert.equal(r.value, 3);}
+      expectOk(r);
+      assert.equal(r.value, 3);
     });
 
     it('chains Ok into an Err and propagates it', () => {
       const start: Result<number, string> = ok(2);
       const r = andThen(start, (_n): Result<number, string> => err('downstream'));
-      assert.equal(r.ok, false);
-      if (!r.ok) {assert.equal(r.error, 'downstream');}
+      expectErr(r);
+      assert.equal(r.error, 'downstream');
     });
 
     it('short-circuits on Err without invoking the function', () => {
@@ -112,8 +114,8 @@ describe('Result', () => {
         return ok(n);
       });
       assert.equal(called, false);
-      assert.equal(r.ok, false);
-      if (!r.ok) {assert.equal(r.error, 'upstream');}
+      expectErr(r);
+      assert.equal(r.error, 'upstream');
     });
   });
 

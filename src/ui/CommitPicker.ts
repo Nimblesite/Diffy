@@ -1,4 +1,5 @@
 import type * as vscode from 'vscode';
+import { UI_TEXT } from '../constants';
 import { type Result, map } from '../result';
 import type { Commit } from '../git/types';
 import { showSinglePick } from './runQuickPick';
@@ -12,7 +13,7 @@ interface CommitPickItem extends vscode.QuickPickItem {
 const toItem = (commit: Commit, now: number): CommitPickItem => ({
   label: commit.shortSha,
   description: commit.subject,
-  detail: `${commit.author} • ${formatRelative(commit.authorTime, now)}`,
+  detail: `${commit.author} ${UI_TEXT.bulletDot} ${formatRelative(commit.authorTime, now)}`,
   commit,
 });
 
@@ -28,7 +29,7 @@ export const pickCommit = async ({
   const tNow = now ?? Math.floor(Date.now() / 1000);
   const r = await showSinglePick<CommitPickItem>({
     items: commits.map((c) => toItem(c, tNow)),
-    placeholder: placeholder ?? 'Pick a commit',
+    placeholder: placeholder ?? UI_TEXT.pickCommitPlaceholder,
     matchOnDescription: true,
     matchOnDetail: true,
   });

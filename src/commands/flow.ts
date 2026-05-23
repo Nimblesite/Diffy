@@ -1,4 +1,12 @@
 import * as vscode from 'vscode';
+import {
+  LOG_EVENTS,
+  REF_TYPES,
+  REV_KINDS,
+  SIDE_B_KINDS,
+  TITLE_PREFIX,
+  UI_TEXT,
+} from '../constants';
 import type { GitRepo } from '../git/GitRepo';
 import type { GitRunner } from '../git/GitRunner';
 import type { GitApi } from '../vscodeGitApi';
@@ -13,6 +21,14 @@ import { mergeChangedFilesWithStats, pickFiles } from '../ui/FilePicker';
 import type { MementoStore } from '../state';
 import { buildRepo, openDiff, pickRepoFrom } from './shared';
 
+const GIT_OPS = {
+  listRefs: 'list refs',
+  revParse: 'rev-parse',
+  log: 'log',
+  diffNameStatus: 'diff --name-status',
+  diffNumstat: 'diff --numstat',
+} as const;
+
 export const reportGitError = ({
   output,
   op,
@@ -22,12 +38,14 @@ export const reportGitError = ({
   op: string;
   e: GitError;
 }): void => {
-  logger.error({ op, kind: e.kind }, 'git.error');
-  output.appendLine(`Diffy: ${op} failed — ${e.message}`);
+  logger.error({ op, kind: e.kind }, LOG_EVENTS.gitError);
+  output.appendLine(`${TITLE_PREFIX} ${op} failed ${UI_TEXT.pathDash} ${e.message}`);
   if (e.stderr !== undefined && e.stderr !== '') {
     output.appendLine(e.stderr);
   }
-  void vscode.window.showErrorMessage(`Diffy: ${op} failed (see Output → Diffy).`);
+  void vscode.window.showErrorMessage(
+    `${TITLE_PREFIX} ${op} failed (see Output → Diffy).`,
+  );
 };
 
 export const resolveSideB = async ({
@@ -39,26 +57,26 @@ export const resolveSideB = async ({
   repo: GitRepo;
   output: vscode.OutputChannel;
 }): Promise<Result<RevSpec, Cancelled>> => {
-  if (choice.kind === 'workingCopy') {
-    return ok({ kind: 'workingCopy' });
+  if (choice.kind === SIDE_B_KINDS.workingCopy) {
+    return ok({ kind: REV_KINDS.workingCopy });
   }
-  if (choice.kind === 'index') {
-    return ok({ kind: 'index' });
+  if (choice.kind === SIDE_B_KINDS.index) {
+    return ok({ kind: REV_KINDS.index });
   }
-  if (choice.kind === 'pickRef') {
-    return resolveRefAsRev({ repo, output });
+  if (choice.kind === SIDE_B_KINDS.pickRef) {
+    return await resolveRefAsRev({ repo, output });
   }
-  return resolveCommitAsRev({ repo, output });
+  return await resolveCommitAsRev({ repo, output });
 };
 
 const placeholderForRefFilter = (filter?: RefType): string => {
-  if (filter === 'branch') {
-    return 'Pick a branch';
+  if (filter === REF_TYPES.branch) {
+    return UI_TEXT.pickBranchPlaceholder;
   }
-  if (filter === 'tag') {
-    return 'Pick a tag';
+  if (filter === REF_TYPES.tag) {
+    return UI_TEXT.pickTagPlaceholder;
   }
-  return 'Pick a branch or tag';
+  return UI_TEXT.pickRefPlaceholder;
 };
 
 export const pickRefAsSha = async ({
@@ -72,7 +90,7 @@ export const pickRefAsSha = async ({
 }): Promise<Result<Sha, Cancelled>> => {
   const refs = await repo.refs();
   if (!refs.ok) {
-    reportGitError({ output, op: 'list refs', e: refs.error });
+    reportGitError({ output, op: GIT_OPS.listRefs, e: refs.error });
     return err(CANCELLED);
   }
   const args = filter === undefined
@@ -84,7 +102,7 @@ export const pickRefAsSha = async ({
   }
   const sha = await repo.revParse(picked.value.name);
   if (!sha.ok) {
-    reportGitError({ output, op: 'rev-parse', e: sha.error });
+    reportGitError({ output, op: GIT_OPS.revParse, e: sha.error });
     return err(CANCELLED);
   }
   return ok(sha.value);
@@ -101,7 +119,7 @@ const resolveRefAsRev = async ({
   if (!sha.ok) {
     return err(CANCELLED);
   }
-  return ok({ kind: 'commit', sha: sha.value });
+  return ok({ kind: REV_KINDS.commit, sha: sha.value });
 };
 
 const resolveCommitAsRev = async ({
@@ -113,14 +131,14 @@ const resolveCommitAsRev = async ({
 }): Promise<Result<RevSpec, Cancelled>> => {
   const log = await repo.log({});
   if (!log.ok) {
-    reportGitError({ output, op: 'log', e: log.error });
+    reportGitError({ output, op: GIT_OPS.log, e: log.error });
     return err(CANCELLED);
   }
   const picked = await pickCommit({ commits: log.value });
   if (!picked.ok) {
     return err(CANCELLED);
   }
-  return ok({ kind: 'commit', sha: picked.value.sha });
+  return ok({ kind: REV_KINDS.commit, sha: picked.value.sha });
 };
 
 export const pickSideBAndResolve = async ({
@@ -134,7 +152,7 @@ export const pickSideBAndResolve = async ({
   if (!choice.ok) {
     return err(CANCELLED);
   }
-  return resolveSideB({ choice: choice.value, repo, output });
+  return await resolveSideB({ choice: choice.value, repo, output });
 };
 
 export const drillIntoFiles = async ({
@@ -157,14 +175,14 @@ export const drillIntoFiles = async ({
     return;
   }
   if (entries.length === 0) {
-    void vscode.window.showInformationMessage('Diffy: no changes between selected sides.');
+    void vscode.window.showInformationMessage(UI_TEXT.noChanges);
     return;
   }
   await state.setLastComparison({ revA, revB, repoRoot });
   await pickFiles({
     entries,
-    onPick: (entry) =>
-      openDiff({ revA, revB, repoRoot, relPath: entry.file.path }),
+    onPick: async (entry) =>
+      { await openDiff({ revA, revB, repoRoot, relPath: entry.file.path }); },
   });
 };
 
@@ -181,18 +199,21 @@ const collectChangedFiles = async ({
 }) => {
   const ns = await repo.nameStatus({ from: revA, to: revB });
   if (!ns.ok) {
-    reportGitError({ output, op: 'diff --name-status', e: ns.error });
+    reportGitError({ output, op: GIT_OPS.diffNameStatus, e: ns.error });
     return undefined;
   }
   const num = await repo.numstat({ from: revA, to: revB });
   if (!num.ok) {
-    reportGitError({ output, op: 'diff --numstat', e: num.error });
+    reportGitError({ output, op: GIT_OPS.diffNumstat, e: num.error });
     return undefined;
   }
   return mergeChangedFilesWithStats(ns.value, num.value);
 };
 
-export const sideAFromSha = (sha: Sha): CommitRev => ({ kind: 'commit', sha });
+export const sideAFromSha = (sha: Sha): CommitRev => ({
+  kind: REV_KINDS.commit,
+  sha,
+});
 
 export interface StartingPoint {
   readonly vsRepoRoot: string;
@@ -216,7 +237,7 @@ export const pickRepoAndCommit = async ({
   const repo = buildRepo(runner, vs.value);
   const log = await repo.log({});
   if (!log.ok) {
-    reportGitError({ output, op: 'log', e: log.error });
+    reportGitError({ output, op: GIT_OPS.log, e: log.error });
     return undefined;
   }
   const commit = await pickCommit({ commits: log.value });

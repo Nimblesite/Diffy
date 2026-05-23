@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SCHEME } from '../constants';
+import { LOG_EVENTS, SCHEME } from '../constants';
 import type { GitRepo } from '../git/GitRepo';
 import { logger } from '../logger';
 import { parseDiffyUri } from '../ui/uri';
@@ -14,17 +14,17 @@ export class DiffyContentProvider implements vscode.TextDocumentContentProvider 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     const parsed = parseDiffyUri(uri.toString());
     if (!parsed.ok) {
-      logger.warn({ kind: parsed.error.kind }, 'provider.parseFailed');
+      logger.warn({ kind: parsed.error.kind }, LOG_EVENTS.providerParseFailed);
       return '';
     }
     const repo = this.resolveRepo(uri);
     if (repo === undefined) {
-      logger.warn({}, 'provider.repoUnresolved');
+      logger.warn({}, LOG_EVENTS.providerRepoUnresolved);
       return '';
     }
     const r = await repo.show({ rev: parsed.value.rev, path: parsed.value.path });
     if (!r.ok) {
-      logger.debug({ kind: r.error.kind }, 'provider.showFailed');
+      logger.debug({ kind: r.error.kind }, LOG_EVENTS.providerShowFailed);
       return '';
     }
     return r.value;

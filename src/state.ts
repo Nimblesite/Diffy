@@ -1,17 +1,18 @@
 import type * as vscode from 'vscode';
 import { MEMENTO_KEYS } from './constants';
+import type { REV_KINDS } from './constants';
 import type { RevSpec, Sha } from './git/types';
 
 export interface LastComparison {
-  readonly revA: { readonly kind: 'commit'; readonly sha: Sha };
+  readonly revA: { readonly kind: typeof REV_KINDS.commit; readonly sha: Sha };
   readonly revB: RevSpec;
   readonly repoRoot: string;
 }
 
 export interface MementoStore {
-  getLastComparison(): LastComparison | undefined;
-  setLastComparison(value: LastComparison): Promise<void>;
-  clearLastComparison(): Promise<void>;
+  getLastComparison: () => LastComparison | undefined;
+  setLastComparison: (value: LastComparison) => Promise<void>;
+  clearLastComparison: () => Promise<void>;
 }
 
 export const isLastComparison = (raw: unknown): raw is LastComparison => {

@@ -129,15 +129,21 @@ describe('mergeChangedFilesWithStats', () => {
   });
 
   it('handles rename entries (new path differs from old)', () => {
-    const files: ChangedFile[] = [
-      { status: 'R', path: 'b2.txt', oldPath: 'b.txt', similarity: 100 },
-    ];
-    const stats: DiffStat[] = [
-      { path: 'b2.txt', oldPath: 'b.txt', added: 1, deleted: 0, binary: false },
-    ];
-    const r = mergeChangedFilesWithStats(files, stats);
-    assert.equal(r[0]?.stat.added, 1);
-    assert.equal(r[0]?.stat.oldPath, 'b.txt');
+    const file: ChangedFile = {
+      status: 'R',
+      path: 'b2.txt',
+      oldPath: 'b.txt',
+      similarity: 100,
+    };
+    const stat: DiffStat = {
+      path: 'b2.txt',
+      oldPath: 'b.txt',
+      added: 1,
+      deleted: 0,
+      binary: false,
+    };
+    const r = mergeChangedFilesWithStats([file], [stat]);
+    assert.deepEqual(r, [{ file, stat }]);
   });
 });
 

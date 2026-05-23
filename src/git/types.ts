@@ -1,6 +1,14 @@
+import type {
+  CHANGED_FILE_STATUSES,
+  GIT_ERROR_KINDS,
+  REF_TYPES,
+  REV_KINDS,
+} from '../constants';
+
 export type Sha = string;
 
-export type ChangedFileStatus = 'A' | 'M' | 'D' | 'R' | 'C';
+export type ChangedFileStatus =
+  (typeof CHANGED_FILE_STATUSES)[keyof typeof CHANGED_FILE_STATUSES];
 
 export interface ChangedFile {
   readonly status: ChangedFileStatus;
@@ -25,15 +33,18 @@ export interface DiffStat {
   readonly binary: boolean;
 }
 
-export type CommitRev = { readonly kind: 'commit'; readonly sha: Sha };
-export type WorkingCopyRev = { readonly kind: 'workingCopy' };
-export type IndexRev = { readonly kind: 'index' };
+export interface CommitRev {
+  readonly kind: typeof REV_KINDS.commit;
+  readonly sha: Sha;
+}
+export interface WorkingCopyRev { readonly kind: typeof REV_KINDS.workingCopy }
+export interface IndexRev { readonly kind: typeof REV_KINDS.index }
 
 export type RevSpec = CommitRev | WorkingCopyRev | IndexRev;
 
 export type DiffyAddressableRev = CommitRev | IndexRev;
 
-export type RefType = 'branch' | 'tag' | 'other';
+export type RefType = (typeof REF_TYPES)[keyof typeof REF_TYPES];
 
 export interface Ref {
   readonly name: string;
@@ -43,11 +54,7 @@ export interface Ref {
 }
 
 export type GitErrorKind =
-  | 'spawnFailed'
-  | 'nonZeroExit'
-  | 'parseError'
-  | 'notARepo'
-  | 'notFound';
+  (typeof GIT_ERROR_KINDS)[keyof typeof GIT_ERROR_KINDS];
 
 export interface GitError {
   readonly kind: GitErrorKind;

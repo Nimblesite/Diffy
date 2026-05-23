@@ -1,17 +1,21 @@
 import { strict as assert } from 'node:assert';
+import { REV_KINDS, URI_PARSE_ERROR_KINDS } from '../../constants';
 import { buildDiffyUri, parseDiffyUri } from '../../ui/uri';
+import { expectErr, expectOk } from '../../result';
 import type { DiffyAddressableRev } from '../../git/types';
 
 const SHA = 'abc1234def567890fedcba0987654321aaaaaaaa';
 
-const commit = (sha: string): DiffyAddressableRev => ({ kind: 'commit', sha });
-const index = (): DiffyAddressableRev => ({ kind: 'index' });
+const commit = (sha: string): DiffyAddressableRev => ({
+  kind: REV_KINDS.commit,
+  sha,
+});
+const index = (): DiffyAddressableRev => ({ kind: REV_KINDS.index });
 
 const roundTrip = (rev: DiffyAddressableRev, path: string): void => {
   const uri = buildDiffyUri(rev, path);
   const parsed = parseDiffyUri(uri);
-  assert.equal(parsed.ok, true, `parse failed for ${uri}`);
-  if (!parsed.ok) {return;}
+  expectOk(parsed);
   assert.deepEqual(parsed.value.rev, rev);
   assert.equal(parsed.value.path, path);
 };
@@ -52,66 +56,64 @@ describe('buildDiffyUri', () => {
 describe('parseDiffyUri', () => {
   it('parses a commit URI and decodes the path', () => {
     const r = parseDiffyUri(`diffy://commit/${SHA}/src/file.ts`);
-    assert.equal(r.ok, true);
-    if (!r.ok) {return;}
-    assert.deepEqual(r.value.rev, { kind: 'commit', sha: SHA });
+    expectOk(r);
+    assert.deepEqual(r.value.rev, { kind: REV_KINDS.commit, sha: SHA });
     assert.equal(r.value.path, 'src/file.ts');
   });
 
   it('parses an index URI and decodes the path', () => {
     const r = parseDiffyUri('diffy://index/src/file.ts');
-    assert.equal(r.ok, true);
-    if (!r.ok) {return;}
-    assert.deepEqual(r.value.rev, { kind: 'index' });
+    expectOk(r);
+    assert.deepEqual(r.value.rev, { kind: REV_KINDS.index });
     assert.equal(r.value.path, 'src/file.ts');
   });
 
   it('rejects a non-diffy scheme', () => {
     const r = parseDiffyUri('file:///some/path.ts');
-    assert.equal(r.ok, false);
-    if (!r.ok) {assert.equal(r.error.kind, 'invalidScheme');}
+    expectErr(r);
+    assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.invalidScheme);
   });
 
   it('rejects an unknown authority', () => {
     const r = parseDiffyUri(`diffy://stash/${SHA}/x.ts`);
-    assert.equal(r.ok, false);
-    if (!r.ok) {assert.equal(r.error.kind, 'invalidAuthority');}
+    expectErr(r);
+    assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.invalidAuthority);
   });
 
   it('rejects a commit URI with no path after the sha', () => {
     const r = parseDiffyUri(`diffy://commit/${SHA}/`);
-    assert.equal(r.ok, false);
-    if (!r.ok) {assert.equal(r.error.kind, 'emptyPath');}
+    expectErr(r);
+    assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.emptyPath);
   });
 
   it('rejects a commit URI with no sha', () => {
     const r = parseDiffyUri('diffy://commit//file.ts');
-    assert.equal(r.ok, false);
-    if (!r.ok) {assert.equal(r.error.kind, 'missingSha');}
+    expectErr(r);
+    assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.missingSha);
   });
 
   it('rejects an index URI with no path', () => {
     const r = parseDiffyUri('diffy://index/');
-    assert.equal(r.ok, false);
-    if (!r.ok) {assert.equal(r.error.kind, 'emptyPath');}
+    expectErr(r);
+    assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.emptyPath);
   });
 
   it('rejects a malformed URI with no scheme separator', () => {
     const r = parseDiffyUri('not-a-uri');
-    assert.equal(r.ok, false);
-    if (!r.ok) {assert.equal(r.error.kind, 'malformed');}
+    expectErr(r);
+    assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.malformed);
   });
 
   it('rejects a URI missing the authority/path slash', () => {
     const r = parseDiffyUri('diffy://commit');
-    assert.equal(r.ok, false);
-    if (!r.ok) {assert.equal(r.error.kind, 'malformed');}
+    expectErr(r);
+    assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.malformed);
   });
 
   it('rejects a URI with malformed percent encoding', () => {
     const r = parseDiffyUri(`diffy://commit/${SHA}/bad%ZZpath.ts`);
-    assert.equal(r.ok, false);
-    if (!r.ok) {assert.equal(r.error.kind, 'badEncoding');}
+    expectErr(r);
+    assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.badEncoding);
   });
 });
 

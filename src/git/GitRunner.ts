@@ -1,8 +1,11 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { GIT_BINARY } from '../constants';
+import { GIT_BINARY, GIT_ERROR_KINDS, LOG_EVENTS } from '../constants';
 import { type Result, ok, err } from '../result';
 import { logger as defaultLogger, type Logger } from '../logger';
 import type { GitError } from './types';
+
+const UNKNOWN_EXIT_LABEL = '?';
+const UNKNOWN_EXIT_CODE = -1;
 
 export interface GitRunArgs {
   readonly args: readonly string[];
@@ -10,7 +13,7 @@ export interface GitRunArgs {
 }
 
 export interface GitRunner {
-  run(args: GitRunArgs): Promise<Result<string, GitError>>;
+  run: (args: GitRunArgs) => Promise<Result<string, GitError>>;
 }
 
 type Resolver = (r: Result<string, GitError>) => void;
@@ -29,16 +32,25 @@ const finishRun = (params: {
   stdout: string;
   stderr: string;
 }): Result<string, GitError> => {
-  if (params.code === 0) {return ok(params.stdout);}
+  if (params.code === 0) {
+    return ok(params.stdout);
+  }
+  const codeLabel = params.code === null ? UNKNOWN_EXIT_LABEL : params.code.toString();
   return err({
-    kind: 'nonZeroExit',
-    message: `git ${params.subcommand} exited ${params.code ?? '?'}`,
+    kind: GIT_ERROR_KINDS.nonZeroExit,
+    message: `git ${params.subcommand} exited ${codeLabel}`,
     stderr: params.stderr,
-    exitCode: params.code ?? -1,
+    exitCode: params.code ?? UNKNOWN_EXIT_CODE,
   });
 };
 
-const wireSubprocess = ({ child, argCount, subcommand, logger, resolve }: WireArgs): void => {
+const wireSubprocess = ({
+  child,
+  argCount,
+  subcommand,
+  logger,
+  resolve,
+}: WireArgs): void => {
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (chunk: Buffer) => {
@@ -48,22 +60,25 @@ const wireSubprocess = ({ child, argCount, subcommand, logger, resolve }: WireAr
     stderr += chunk.toString('utf8');
   });
   child.on('error', (e: Error) => {
-    logger.warn({ argCount }, 'git.run.spawnFailed');
-    resolve(err({ kind: 'spawnFailed', message: e.message }));
+    logger.warn({ argCount }, LOG_EVENTS.gitRunSpawnFailed);
+    resolve(err({ kind: GIT_ERROR_KINDS.spawnFailed, message: e.message }));
   });
   child.on('close', (code: number | null) => {
-    logger.debug({ exitCode: code, stdoutLen: stdout.length }, 'git.run.end');
+    logger.debug(
+      { exitCode: code, stdoutLen: stdout.length },
+      LOG_EVENTS.gitRunEnd,
+    );
     resolve(finishRun({ code, subcommand, stdout, stderr }));
   });
 };
 
-const runGit = ({
+const runGit = async ({
   args,
   cwd,
   logger,
 }: GitRunArgs & { logger: Logger }): Promise<Result<string, GitError>> => {
-  logger.debug({ argCount: args.length }, 'git.run.start');
-  return new Promise<Result<string, GitError>>((resolve) => {
+  logger.debug({ argCount: args.length }, LOG_EVENTS.gitRunStart);
+  return await new Promise<Result<string, GitError>>((resolve) => {
     const child = spawn(GIT_BINARY, [...args], { cwd });
     wireSubprocess({
       child,
@@ -79,5 +94,5 @@ export const createGitRunner = (
   deps: { logger?: Logger } = {},
 ): GitRunner => {
   const logger = deps.logger ?? defaultLogger;
-  return { run: (a) => runGit({ ...a, logger }) };
+  return { run: async (a) => await runGit({ ...a, logger }) };
 };

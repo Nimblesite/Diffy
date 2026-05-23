@@ -1,6 +1,12 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { BUILT_IN_COMMANDS, SHORT_SHA_LEN } from '../constants';
+import {
+  BUILT_IN_COMMANDS,
+  LOG_EVENTS,
+  REV_KINDS,
+  SHORT_SHA_LEN,
+  UI_TEXT,
+} from '../constants';
 import type { GitRepo } from '../git/GitRepo';
 import type { GitRunner } from '../git/GitRunner';
 import { createGitRepo } from '../git/GitRepo';
@@ -24,13 +30,13 @@ export interface CommandDeps {
 export const shortSha = (sha: Sha): string => sha.slice(0, SHORT_SHA_LEN);
 
 const labelForRev = (rev: RevSpec): string => {
-  if (rev.kind === 'commit') {
+  if (rev.kind === REV_KINDS.commit) {
     return shortSha(rev.sha);
   }
-  if (rev.kind === 'workingCopy') {
-    return 'Working Copy';
+  if (rev.kind === REV_KINDS.workingCopy) {
+    return UI_TEXT.workingCopy;
   }
-  return 'Index';
+  return UI_TEXT.indexLabel;
 };
 
 export const formatDiffTitle = ({
@@ -41,7 +47,8 @@ export const formatDiffTitle = ({
   revA: CommitRev;
   revB: RevSpec;
   basename: string;
-}): string => `${labelForRev(revA)} ↔ ${labelForRev(revB)} — ${basename}`;
+}): string =>
+  `${labelForRev(revA)} ${UI_TEXT.pathArrow} ${labelForRev(revB)} ${UI_TEXT.pathDash} ${basename}`;
 
 export const uriForRev = ({
   rev,
@@ -52,11 +59,13 @@ export const uriForRev = ({
   repoRoot: string;
   relPath: string;
 }): vscode.Uri => {
-  if (rev.kind === 'workingCopy') {
+  if (rev.kind === REV_KINDS.workingCopy) {
     return vscode.Uri.file(path.join(repoRoot, relPath));
   }
   const addressable: DiffyAddressableRev =
-    rev.kind === 'commit' ? { kind: 'commit', sha: rev.sha } : { kind: 'index' };
+    rev.kind === REV_KINDS.commit
+      ? { kind: REV_KINDS.commit, sha: rev.sha }
+      : { kind: REV_KINDS.index };
   return vscode.Uri.parse(buildDiffyUri(addressable, relPath));
 };
 
@@ -73,9 +82,21 @@ export const openDiff = async ({
 }): Promise<void> => {
   const left = uriForRev({ rev: revA, repoRoot, relPath });
   const right = uriForRev({ rev: revB, repoRoot, relPath });
-  const title = formatDiffTitle({ revA, revB, basename: path.basename(relPath) });
-  logger.info({ shaA: shortSha(revA.sha), revBKind: revB.kind }, 'diff.open');
-  await vscode.commands.executeCommand(BUILT_IN_COMMANDS.diff, left, right, title);
+  const title = formatDiffTitle({
+    revA,
+    revB,
+    basename: path.basename(relPath),
+  });
+  logger.info(
+    { shaA: shortSha(revA.sha), revBKind: revB.kind },
+    LOG_EVENTS.diffOpen,
+  );
+  await vscode.commands.executeCommand(
+    BUILT_IN_COMMANDS.diff,
+    left,
+    right,
+    title,
+  );
 };
 
 export const repoForUri = (
@@ -93,9 +114,12 @@ export const pickRepoFrom = async (
   if (api.repositories.length === 1 && first !== undefined) {
     return ok(first);
   }
-  const items = api.repositories.map((r) => ({ label: r.rootUri.fsPath, repo: r }));
+  const items = api.repositories.map((r) => ({
+    label: r.rootUri.fsPath,
+    repo: r,
+  }));
   const picked = await vscode.window.showQuickPick(items, {
-    placeHolder: 'Pick a git repository',
+    placeHolder: UI_TEXT.pickRepoPlaceholder,
   });
   return picked === undefined ? err(CANCELLED) : ok(picked.repo);
 };

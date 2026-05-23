@@ -40,8 +40,8 @@ export const readSeedShas = (): SeedShas => {
   return { first, second, third };
 };
 
-export const tick = (count = 30): Promise<void> =>
-  new Promise<void>((resolve) => {
+export const tick = async (count = 30): Promise<void> =>
+  { await new Promise<void>((resolve) => {
     let i = 0;
     const step = (): void => {
       i++;
@@ -52,12 +52,12 @@ export const tick = (count = 30): Promise<void> =>
       setImmediate(step);
     };
     setImmediate(step);
-  });
+  }); };
 
-const wait = (ms: number): Promise<void> =>
-  new Promise<void>((resolve) => {
+const wait = async (ms: number): Promise<void> =>
+  { await new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
-  });
+  }); };
 
 const PICKER_RENDER_MS = 900;
 
@@ -86,12 +86,12 @@ export const allDiffTabs = (): vscode.Tab[] =>
     .flatMap((g) => g.tabs)
     .filter((t) => t.input instanceof vscode.TabInputTextDiff);
 
-export const waitForDiffTab = ({
+export const waitForDiffTab = async ({
   timeoutMs = 8000,
 }: {
   timeoutMs?: number;
 } = {}): Promise<vscode.Tab> => {
-  return new Promise<vscode.Tab>((resolve, reject) => {
+  return await new Promise<vscode.Tab>((resolve, reject) => {
     const existing = allDiffTabs()[0];
     if (existing !== undefined) {
       resolve(existing);
@@ -120,7 +120,7 @@ export const closeAllEditors = async (): Promise<void> => {
 export const openFileInEditor = async (relPath: string): Promise<vscode.TextEditor> => {
   const uri = vscode.Uri.file(path.join(workspaceRoot(), relPath));
   const doc = await vscode.workspace.openTextDocument(uri);
-  return vscode.window.showTextDocument(doc);
+  return await vscode.window.showTextDocument(doc);
 };
 
 export const tabInputUris = (
@@ -134,11 +134,11 @@ export const tabInputUris = (
 
 interface GitApiShape {
   readonly repositories: readonly { readonly rootUri: vscode.Uri }[];
-  onDidOpenRepository(handler: () => void): { dispose(): void };
+  onDidOpenRepository: (handler: () => void) => { dispose: () => void };
 }
 
 interface GitExtensionShape {
-  getAPI(version: 1): GitApiShape;
+  getAPI: (version: 1) => GitApiShape;
 }
 
 export const waitForRepoReady = async (timeoutMs = 15000): Promise<void> => {

@@ -1,4 +1,11 @@
-import { COMMAND_IDS } from './constants';
+import {
+  COMMAND_IDS,
+  MENU_GROUP_PREFIX,
+  MENU_IDS,
+  MENU_WHEN,
+  TITLE_PREFIX,
+  UI_TEXT,
+} from './constants';
 
 export interface MenuEntry {
   readonly command: string;
@@ -8,21 +15,13 @@ export interface MenuEntry {
 
 export interface MenuManifest {
   readonly menus: Record<string, readonly MenuEntry[]>;
-  readonly commandPalette: readonly { readonly command: string; readonly when: string }[];
+  readonly commandPalette: readonly {
+    readonly command: string;
+    readonly when: string;
+  }[];
 }
 
-const MENU_IDS = {
-  scmHistoryItem: 'scm/historyItem/context',
-  scmResourceState: 'scm/resourceState/context',
-  editorTitleContext: 'editor/title/context',
-  explorerContext: 'explorer/context',
-  commandPalette: 'commandPalette',
-} as const;
-
-const WHEN_GIT = 'scmProvider == git';
-const WHEN_FILE = 'resourceScheme == file';
-const WHEN_FILE_NOT_FOLDER = 'resourceScheme == file && !explorerResourceIsFolder';
-const NEVER = 'false';
+const ENTRY_INDEX_OFFSET = 1;
 
 const commitLevelCommands = [
   COMMAND_IDS.compareWith,
@@ -46,18 +45,34 @@ const groupedEntries = (
   commands.map((command, i) => ({
     command,
     when,
-    group: `${groupPrefix}@${i + 1}`,
+    group: `${groupPrefix}@${(i + ENTRY_INDEX_OFFSET).toString()}`,
   }));
 
 const hideFromPalette = (commands: readonly string[]) =>
-  commands.map((command) => ({ command, when: NEVER }));
+  commands.map((command) => ({ command, when: MENU_WHEN.never }));
 
 export const buildMenuManifest = (): MenuManifest => ({
   menus: {
-    [MENU_IDS.scmHistoryItem]: groupedEntries(commitLevelCommands, WHEN_GIT, 'diffy'),
-    [MENU_IDS.scmResourceState]: groupedEntries(fileLevelCommands, WHEN_GIT, 'diffy'),
-    [MENU_IDS.editorTitleContext]: groupedEntries(fileLevelCommands, WHEN_FILE, 'diffy'),
-    [MENU_IDS.explorerContext]: groupedEntries(fileLevelCommands, WHEN_FILE_NOT_FOLDER, 'diffy'),
+    [MENU_IDS.scmHistoryItem]: groupedEntries(
+      commitLevelCommands,
+      MENU_WHEN.scmGit,
+      MENU_GROUP_PREFIX,
+    ),
+    [MENU_IDS.scmResourceState]: groupedEntries(
+      fileLevelCommands,
+      MENU_WHEN.scmGit,
+      MENU_GROUP_PREFIX,
+    ),
+    [MENU_IDS.editorTitleContext]: groupedEntries(
+      fileLevelCommands,
+      MENU_WHEN.resourceFile,
+      MENU_GROUP_PREFIX,
+    ),
+    [MENU_IDS.explorerContext]: groupedEntries(
+      fileLevelCommands,
+      MENU_WHEN.resourceFileNotFolder,
+      MENU_GROUP_PREFIX,
+    ),
   },
   commandPalette: hideFromPalette([
     COMMAND_IDS.compareWith,
@@ -70,15 +85,15 @@ export const buildMenuManifest = (): MenuManifest => ({
 });
 
 export const COMMAND_TITLES: Record<string, string> = {
-  [COMMAND_IDS.compareWith]: 'Diffy: Compare with…',
-  [COMMAND_IDS.compareWithWorkingCopy]: 'Diffy: Compare with Working Copy',
-  [COMMAND_IDS.compareWithPrevious]: 'Diffy: Compare with Previous',
-  [COMMAND_IDS.compareWithBranch]: 'Diffy: Compare with Branch…',
-  [COMMAND_IDS.compareWithTag]: 'Diffy: Compare with Tag…',
-  [COMMAND_IDS.compareTwoCommits]: 'Diffy: Compare Two Commits',
-  [COMMAND_IDS.compareFileWithCommit]: 'Diffy: Compare with Commit…',
-  [COMMAND_IDS.compareFileWithBranch]: 'Diffy: Compare with Branch…',
-  [COMMAND_IDS.compareFileWithTag]: 'Diffy: Compare with Tag…',
-  [COMMAND_IDS.reopenLast]: 'Diffy: Reopen Last Comparison',
-  [COMMAND_IDS.showLogs]: 'Diffy: Show Logs',
+  [COMMAND_IDS.compareWith]: `${TITLE_PREFIX} Compare with…`,
+  [COMMAND_IDS.compareWithWorkingCopy]: `${TITLE_PREFIX} Compare with ${UI_TEXT.workingCopy}`,
+  [COMMAND_IDS.compareWithPrevious]: `${TITLE_PREFIX} Compare with Previous`,
+  [COMMAND_IDS.compareWithBranch]: `${TITLE_PREFIX} Compare with ${UI_TEXT.branchLabel}…`,
+  [COMMAND_IDS.compareWithTag]: `${TITLE_PREFIX} Compare with ${UI_TEXT.tagLabel}…`,
+  [COMMAND_IDS.compareTwoCommits]: `${TITLE_PREFIX} Compare Two Commits`,
+  [COMMAND_IDS.compareFileWithCommit]: `${TITLE_PREFIX} Compare with Commit…`,
+  [COMMAND_IDS.compareFileWithBranch]: `${TITLE_PREFIX} Compare with ${UI_TEXT.branchLabel}…`,
+  [COMMAND_IDS.compareFileWithTag]: `${TITLE_PREFIX} Compare with ${UI_TEXT.tagLabel}…`,
+  [COMMAND_IDS.reopenLast]: `${TITLE_PREFIX} Reopen Last Comparison`,
+  [COMMAND_IDS.showLogs]: `${TITLE_PREFIX} Show Logs`,
 };

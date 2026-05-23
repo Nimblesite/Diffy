@@ -1,8 +1,15 @@
 import { strict as assert } from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { COMMAND_IDS } from '../../constants';
+import {
+  COMMAND_IDS,
+  MENU_IDS,
+  MENU_WHEN,
+  TITLE_PREFIX,
+} from '../../constants';
 import { COMMAND_TITLES, buildMenuManifest } from '../../menus';
+
+const PROPOSED_API_HISTORY_ITEM_MENU = 'contribSourceControlHistoryItemMenu';
 
 const repoRoot = resolve(__dirname, '..', '..', '..');
 const readPackageJson = (): Record<string, unknown> =>
@@ -19,14 +26,30 @@ const getContributes = (pkg: Record<string, unknown>): Record<string, unknown> =
   return c as Record<string, unknown>;
 };
 
+const getMenus = (
+  contributes: Record<string, unknown>,
+): Record<string, unknown> => {
+  const m = contributes['menus'];
+  if (typeof m !== 'object' || m === null) {
+    throw new Error('package.json: contributes.menus missing');
+  }
+  return m as Record<string, unknown>;
+};
+
+const titlePrefixPattern = new RegExp(
+  `^${TITLE_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} `,
+);
+
 describe('menu manifest — single source of truth', () => {
   it('every COMMAND_ID has a human title in COMMAND_TITLES', () => {
     for (const id of Object.values(COMMAND_IDS)) {
-      assert.ok(
-        COMMAND_TITLES[id] !== undefined,
-        `missing title for command ${id}`,
+      const title = COMMAND_TITLES[id];
+      assert.ok(title !== undefined, `missing title for command ${id}`);
+      assert.match(
+        title,
+        titlePrefixPattern,
+        `title for ${id} must start with "${TITLE_PREFIX} "`,
       );
-      assert.match(COMMAND_TITLES[id], /^Diffy: /, `title for ${id} must start with "Diffy: "`);
     }
   });
 
@@ -36,17 +59,17 @@ describe('menu manifest — single source of truth', () => {
     assert.deepEqual(
       menuIds.sort(),
       [
-        'editor/title/context',
-        'explorer/context',
-        'scm/historyItem/context',
-        'scm/resourceState/context',
-      ],
+        MENU_IDS.editorTitleContext,
+        MENU_IDS.explorerContext,
+        MENU_IDS.scmHistoryItem,
+        MENU_IDS.scmResourceState,
+      ].sort(),
       'menu IDs must match VSCode contribution points (note: singular scm/historyItem/context)',
     );
   });
 
   it('SCM history item menu contains all five commit-level Diffy commands', () => {
-    const entries = buildMenuManifest().menus['scm/historyItem/context'];
+    const entries = buildMenuManifest().menus[MENU_IDS.scmHistoryItem];
     assert.ok(entries !== undefined);
     const cmds = entries.map((e) => e.command);
     assert.deepEqual(cmds, [
@@ -57,7 +80,7 @@ describe('menu manifest — single source of truth', () => {
       COMMAND_IDS.compareWithTag,
     ]);
     for (const e of entries) {
-      assert.equal(e.when, 'scmProvider == git');
+      assert.equal(e.when, MENU_WHEN.scmGit);
       assert.match(e.group, /^diffy@\d+$/);
     }
   });
@@ -70,9 +93,9 @@ describe('menu manifest — single source of truth', () => {
       COMMAND_IDS.compareFileWithTag,
     ];
     for (const menuId of [
-      'editor/title/context',
-      'explorer/context',
-      'scm/resourceState/context',
+      MENU_IDS.editorTitleContext,
+      MENU_IDS.explorerContext,
+      MENU_IDS.scmResourceState,
     ]) {
       const entries = m[menuId];
       assert.ok(entries !== undefined, `missing ${menuId}`);
@@ -98,7 +121,7 @@ describe('menu manifest — single source of truth', () => {
       assert.ok(hidden.includes(cmd), `${cmd} should be hidden from the palette`);
     }
     for (const e of palette) {
-      assert.equal(e.when, 'false');
+      assert.equal(e.when, MENU_WHEN.never);
     }
   });
 
@@ -106,21 +129,23 @@ describe('menu manifest — single source of truth', () => {
     const manifest = buildMenuManifest();
     const pkg = readPackageJson();
     const contributes = getContributes(pkg);
-
-    const pkgMenus = contributes['menus'] as Record<string, unknown>;
-    assert.ok(pkgMenus !== undefined, 'package.json missing contributes.menus');
+    const pkgMenus = getMenus(contributes);
 
     for (const [menuId, entries] of Object.entries(manifest.menus)) {
       const written = pkgMenus[menuId];
       assert.deepEqual(
         written,
-        entries.map((e) => ({ command: e.command, when: e.when, group: e.group })),
+        entries.map((e) => ({
+          command: e.command,
+          when: e.when,
+          group: e.group,
+        })),
         `package.json ${menuId} drifted from src/menus.ts — run 'npm run sync:menus'`,
       );
     }
 
     assert.deepEqual(
-      pkgMenus['commandPalette'],
+      pkgMenus[MENU_IDS.commandPalette],
       manifest.commandPalette.map((e) => ({ command: e.command, when: e.when })),
       'package.json commandPalette block drifted from src/menus.ts',
     );
@@ -129,14 +154,21 @@ describe('menu manifest — single source of truth', () => {
   it('package.json contributes.commands lists every COMMAND_TITLES entry exactly', () => {
     const pkg = readPackageJson();
     const contributes = getContributes(pkg);
-    const cmds = contributes['commands'] as readonly { readonly command: string; readonly title: string }[];
+    const cmds = contributes['commands'] as readonly {
+      readonly command: string;
+      readonly title: string;
+    }[];
     assert.ok(Array.isArray(cmds));
 
     const expected = Object.entries(COMMAND_TITLES).map(([command, title]) => ({
       command,
       title,
     }));
-    assert.deepEqual(cmds, expected, 'package.json commands drifted — run npm run sync:menus');
+    assert.deepEqual(
+      cmds,
+      expected,
+      'package.json commands drifted — run npm run sync:menus',
+    );
   });
 
   it('package.json declares the contribSourceControlHistoryItemMenu proposed API (required for the commit-row context menu)', () => {
@@ -147,8 +179,8 @@ describe('menu manifest — single source of truth', () => {
       'package.json must declare enabledApiProposals so SCM Graph commit menus actually appear',
     );
     assert.ok(
-      (proposals as readonly string[]).includes('contribSourceControlHistoryItemMenu'),
-      'enabledApiProposals must include contribSourceControlHistoryItemMenu',
+      (proposals as readonly string[]).includes(PROPOSED_API_HISTORY_ITEM_MENU),
+      `enabledApiProposals must include ${PROPOSED_API_HISTORY_ITEM_MENU}`,
     );
   });
 });

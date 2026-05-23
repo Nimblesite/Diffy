@@ -1,4 +1,5 @@
 import type * as vscode from 'vscode';
+import { SHORT_SHA_LEN, UI_TEXT } from '../constants';
 import { type Result, map } from '../result';
 import type { Ref, RefType } from '../git/types';
 import { showSinglePick } from './runQuickPick';
@@ -11,7 +12,7 @@ interface RefPickItem extends vscode.QuickPickItem {
 
 const toItem = (ref: Ref): RefPickItem => ({
   label: ref.name,
-  description: ref.sha.slice(0, 7),
+  description: ref.sha.slice(0, SHORT_SHA_LEN),
   detail: refTypeLabel(ref),
   ref,
 });
@@ -34,7 +35,7 @@ export const pickRef = async ({
   const items = filterRefs(refs, filter).map(toItem);
   const r = await showSinglePick<RefPickItem>({
     items,
-    placeholder: placeholder ?? 'Pick a branch or tag',
+    placeholder: placeholder ?? UI_TEXT.pickRefPlaceholder,
     matchOnDescription: true,
     matchOnDetail: true,
   });

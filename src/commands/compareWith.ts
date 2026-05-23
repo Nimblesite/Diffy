@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { TITLE_PREFIX } from '../constants';
 import type { MementoStore } from '../state';
 import { extractHistoryItemSha } from './historyItem';
 import {
@@ -12,15 +13,16 @@ import {
   sideAFromSha,
 } from './flow';
 
+const NOT_FROM_HISTORY =
+  `${TITLE_PREFIX} this command must be invoked from the SCM history view.`;
+
 const handler = async (
   deps: CommandDeps & { readonly state: MementoStore },
   arg: unknown,
 ): Promise<void> => {
   const sha = extractHistoryItemSha(arg);
   if (sha === undefined) {
-    void vscode.window.showWarningMessage(
-      'Diffy: this command must be invoked from the SCM history view.',
-    );
+    void vscode.window.showWarningMessage(NOT_FROM_HISTORY);
     return;
   }
   const vs = await pickRepoFrom(deps.gitApi);
@@ -45,4 +47,4 @@ const handler = async (
 export const makeCompareWith = (
   deps: CommandDeps & { readonly state: MementoStore },
 ) =>
-  async (arg: unknown): Promise<void> => handler(deps, arg);
+  async (arg: unknown): Promise<void> => { await handler(deps, arg); };

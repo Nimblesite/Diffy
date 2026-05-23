@@ -35,12 +35,12 @@ export interface LogArgs {
 }
 
 export interface GitRepo {
-  log(args?: LogArgs): Promise<Result<readonly Commit[], GitError>>;
-  nameStatus(args: DiffSides): Promise<Result<readonly ChangedFile[], GitError>>;
-  numstat(args: DiffSides): Promise<Result<readonly DiffStat[], GitError>>;
-  show(args: ShowArgs): Promise<Result<string, GitError>>;
-  refs(): Promise<Result<readonly Ref[], GitError>>;
-  revParse(name: string): Promise<Result<Sha, GitError>>;
+  log: (args?: LogArgs) => Promise<Result<readonly Commit[], GitError>>;
+  nameStatus: (args: DiffSides) => Promise<Result<readonly ChangedFile[], GitError>>;
+  numstat: (args: DiffSides) => Promise<Result<readonly DiffStat[], GitError>>;
+  show: (args: ShowArgs) => Promise<Result<string, GitError>>;
+  refs: () => Promise<Result<readonly Ref[], GitError>>;
+  revParse: (name: string) => Promise<Result<Sha, GitError>>;
 }
 
 const buildLogArgs = (params: { limit: number; ref?: string }): readonly string[] => {
@@ -87,7 +87,7 @@ export const createGitRepo = ({
     const r = await runner.run({ args: buildDiffArgs(args, 'numstat'), cwd });
     return andThen(r, parseNumstat);
   },
-  show: (args) => runner.run({ args: ['show', showSpec(args)], cwd }),
+  show: async (args) => await runner.run({ args: ['show', showSpec(args)], cwd }),
   refs: async () => {
     const r = await runner.run({
       args: ['for-each-ref', `--format=${REFS_FORMAT}`],
