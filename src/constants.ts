@@ -6,8 +6,12 @@ export const COMMAND_IDS = {
   compareWith: 'diffy.compareWith',
   compareWithWorkingCopy: 'diffy.compareWithWorkingCopy',
   compareWithPrevious: 'diffy.compareWithPrevious',
+  compareWithBranch: 'diffy.compareWithBranch',
+  compareWithTag: 'diffy.compareWithTag',
   compareTwoCommits: 'diffy.compareTwoCommits',
   compareFileWithCommit: 'diffy.compareFileWithCommit',
+  compareFileWithBranch: 'diffy.compareFileWithBranch',
+  compareFileWithTag: 'diffy.compareFileWithTag',
   reopenLast: 'diffy.reopenLast',
   showLogs: 'diffy.showLogs',
 } as const;

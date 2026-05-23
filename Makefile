@@ -47,11 +47,12 @@ test:
 	npm run test:coverage
 	$(MAKE) _coverage_check
 
-## lint: ESLint + tsc --noEmit (read-only). No formatting.
+## lint: ESLint + tsc --noEmit + shipwright.json schema check (read-only). No formatting.
 lint:
 	@echo "==> Linting..."
 	npm run lint
 	npm run typecheck
+	npm run shipwright:validate
 
 ## fmt: Prettier in-place. Pass CHECK=1 for read-only check (CI use).
 fmt:
@@ -61,7 +62,7 @@ fmt:
 ## clean: Remove all build artifacts
 clean:
 	@echo "==> Cleaning..."
-	$(RM) out dist coverage .vscode-test .nyc_output *.vsix
+	$(RM) out dist coverage .vscode-test .nyc_output *.vsix build-info.json
 
 ## ci: lint + test + build (full CI simulation)
 ci: lint test build

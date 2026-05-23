@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import type { GitRepo } from '../git/GitRepo';
 import type { GitRunner } from '../git/GitRunner';
 import type { GitApi } from '../vscodeGitApi';
-import type { GitError, CommitRev, RevSpec, Sha } from '../git/types';
+import type { GitError, CommitRev, RefType, RevSpec, Sha } from '../git/types';
 import { logger } from '../logger';
 import { type Result, err, ok } from '../result';
 import { CANCELLED, type Cancelled } from '../ui/cancelled';
@@ -51,6 +51,45 @@ export const resolveSideB = async ({
   return resolveCommitAsRev({ repo, output });
 };
 
+const placeholderForRefFilter = (filter?: RefType): string => {
+  if (filter === 'branch') {
+    return 'Pick a branch';
+  }
+  if (filter === 'tag') {
+    return 'Pick a tag';
+  }
+  return 'Pick a branch or tag';
+};
+
+export const pickRefAsSha = async ({
+  repo,
+  output,
+  filter,
+}: {
+  repo: GitRepo;
+  output: vscode.OutputChannel;
+  filter?: RefType;
+}): Promise<Result<Sha, Cancelled>> => {
+  const refs = await repo.refs();
+  if (!refs.ok) {
+    reportGitError({ output, op: 'list refs', e: refs.error });
+    return err(CANCELLED);
+  }
+  const args = filter === undefined
+    ? { refs: refs.value, placeholder: placeholderForRefFilter() }
+    : { refs: refs.value, placeholder: placeholderForRefFilter(filter), filter };
+  const picked = await pickRef(args);
+  if (!picked.ok) {
+    return err(CANCELLED);
+  }
+  const sha = await repo.revParse(picked.value.name);
+  if (!sha.ok) {
+    reportGitError({ output, op: 'rev-parse', e: sha.error });
+    return err(CANCELLED);
+  }
+  return ok(sha.value);
+};
+
 const resolveRefAsRev = async ({
   repo,
   output,
@@ -58,18 +97,8 @@ const resolveRefAsRev = async ({
   repo: GitRepo;
   output: vscode.OutputChannel;
 }): Promise<Result<RevSpec, Cancelled>> => {
-  const refs = await repo.refs();
-  if (!refs.ok) {
-    reportGitError({ output, op: 'list refs', e: refs.error });
-    return err(CANCELLED);
-  }
-  const picked = await pickRef({ refs: refs.value });
-  if (!picked.ok) {
-    return err(CANCELLED);
-  }
-  const sha = await repo.revParse(picked.value.name);
+  const sha = await pickRefAsSha({ repo, output });
   if (!sha.ok) {
-    reportGitError({ output, op: 'rev-parse', e: sha.error });
     return err(CANCELLED);
   }
   return ok({ kind: 'commit', sha: sha.value });

@@ -75,3 +75,6 @@ build/
 .vscode-test/
 .vscode-test-web/
 .nyc_output/
+
+# Shipwright SWR-VERSION-BUILD-STAMPING — release-time artifact, never committed
+build-info.json

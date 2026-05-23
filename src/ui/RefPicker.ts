@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
 import { type Result, map } from '../result';
-import type { Ref } from '../git/types';
+import type { Ref, RefType } from '../git/types';
 import { showSinglePick } from './runQuickPick';
 import type { Cancelled } from './cancelled';
 import { refTypeLabel } from './format/refLabel';
@@ -16,15 +16,24 @@ const toItem = (ref: Ref): RefPickItem => ({
   ref,
 });
 
+export const filterRefs = (
+  refs: readonly Ref[],
+  filter?: RefType,
+): readonly Ref[] =>
+  filter === undefined ? refs : refs.filter((r) => r.type === filter);
+
 export const pickRef = async ({
   refs,
   placeholder,
+  filter,
 }: {
   refs: readonly Ref[];
   placeholder?: string;
+  filter?: RefType;
 }): Promise<Result<Ref, Cancelled>> => {
+  const items = filterRefs(refs, filter).map(toItem);
   const r = await showSinglePick<RefPickItem>({
-    items: refs.map(toItem),
+    items,
     placeholder: placeholder ?? 'Pick a branch or tag',
     matchOnDescription: true,
     matchOnDetail: true,

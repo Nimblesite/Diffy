@@ -8,9 +8,11 @@ import { createGitRunner } from './git/GitRunner';
 import { type GitApi, getGitApi } from './vscodeGitApi';
 import { addLogStream, logger } from './logger';
 import { makeCompareFileWithCommit } from './commands/compareFileWithCommit';
+import { makeCompareFileWithRev } from './commands/compareFileWithRev';
 import { makeCompareTwoCommits } from './commands/compareTwoCommits';
 import { makeCompareWith } from './commands/compareWith';
 import { makeCompareWithPrevious } from './commands/compareWithPrevious';
+import { makeCompareWithRef } from './commands/compareWithRef';
 import { makeCompareWithWorkingCopy } from './commands/compareWithWorkingCopy';
 import { makeReopenLast } from './commands/reopenLast';
 import { registerDiffyContentProvider } from './providers/DiffyContentProvider';
@@ -75,12 +77,28 @@ const registerAll = (
       makeCompareWithPrevious(deps),
     ),
     vscode.commands.registerCommand(
+      COMMAND_IDS.compareWithBranch,
+      makeCompareWithRef({ deps, filter: 'branch' }),
+    ),
+    vscode.commands.registerCommand(
+      COMMAND_IDS.compareWithTag,
+      makeCompareWithRef({ deps, filter: 'tag' }),
+    ),
+    vscode.commands.registerCommand(
       COMMAND_IDS.compareTwoCommits,
       makeCompareTwoCommits(deps),
     ),
     vscode.commands.registerCommand(
       COMMAND_IDS.compareFileWithCommit,
       makeCompareFileWithCommit(deps),
+    ),
+    vscode.commands.registerCommand(
+      COMMAND_IDS.compareFileWithBranch,
+      makeCompareFileWithRev({ deps, source: 'branch' }),
+    ),
+    vscode.commands.registerCommand(
+      COMMAND_IDS.compareFileWithTag,
+      makeCompareFileWithRev({ deps, source: 'tag' }),
     ),
     vscode.commands.registerCommand(COMMAND_IDS.reopenLast, makeReopenLast(deps)),
     vscode.commands.registerCommand(COMMAND_IDS.showLogs, () => {

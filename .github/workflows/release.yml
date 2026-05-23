@@ -1,4 +1,16 @@
 # agent-pmo:74cf183
+# Shipwright SWR-REL-* release pipeline for Diffy.
+#
+#   1. version            — derive semver from the v* tag, capture source SHA
+#   2. ci-gate            — run `make ci` on the tagged commit; publish is blocked unless this passes
+#   3. validate-manifest  — schema-check shipwright.json before any artifact is built
+#   4. build-vsix matrix  — stamp the runner working tree, verify, build, package per platform
+#   5. release            — assemble the GitHub Release with every VSIX
+#   6. publish            — push every VSIX to the VS Code Marketplace in one vsce call
+#
+# Source-controlled versions are never mutated. Stamping happens in the runner
+# working tree only, per SWR-VERSION-BUILD-STAMPING.
+
 name: Release
 
 on:
@@ -13,7 +25,7 @@ jobs:
   version:
     name: Extract release version
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.extract.outputs.version }}
       source_sha: ${{ steps.extract.outputs.source_sha }}
@@ -24,9 +36,51 @@ jobs:
           echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           echo "source_sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+  ci-gate:
+    name: CI gate (make ci)
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.source_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+      - run: npm ci
+      - name: Format check
+        run: make fmt CHECK=1
+      - name: Lint (includes shipwright.json schema check)
+        run: make lint
+      - name: Test (xvfb for @vscode/test-electron)
+        run: xvfb-run -a make test
+      - name: Build
+        run: make build
+
+  validate-manifest:
+    name: Validate shipwright.json
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.source_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+      - run: npm ci
+      - name: Validate shipwright.json against schema
+        run: npm run shipwright:validate
+      - name: Dry-run stamp (proves the script runs against this tag)
+        run: node scripts/stamp-release-version.mjs "${{ needs.version.outputs.version }}" --dry
+
   build-vsix:
     name: Build VSIX (${{ matrix.artifact_name }})
-    needs: version
+    needs: [version, ci-gate, validate-manifest]
     strategy:
       fail-fast: false
       matrix:
@@ -50,7 +104,7 @@ jobs:
             vsce_target: win32-arm64
             artifact_name: win32-arm64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,17 +116,24 @@ jobs:
           node-version: '22.x'
           cache: 'npm'
 
-      - name: Stamp version
-        run: node scripts/stamp-release-version.mjs "${{ needs.version.outputs.version }}"
-
       - name: Install dependencies
         run: npm ci
+
+      - name: Stamp release version (runner tree only)
+        run: node scripts/stamp-release-version.mjs "${{ needs.version.outputs.version }}"
+
+      - name: Verify every version carrier
+        run: node scripts/verify-versions.mjs "${{ needs.version.outputs.version }}"
 
       - name: Build
         run: npm run build
 
       - name: Package VSIX
         run: npx vsce package --target ${{ matrix.vsce_target }} --out diffy-${{ needs.version.outputs.version }}-${{ matrix.vsce_target }}.vsix
+
+      - name: Verify VSIX bundles shipwright.json
+        shell: bash
+        run: unzip -l diffy-${{ needs.version.outputs.version }}-${{ matrix.vsce_target }}.vsix | grep -F "extension/shipwright.json"
 
       - name: Upload VSIX
         uses: actions/upload-artifact@v4

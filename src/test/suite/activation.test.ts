@@ -5,15 +5,7 @@ import { tick } from './helpers';
 
 const EXTENSION_ID = 'nimblesite.diffy';
 
-const ALL_COMMAND_IDS: readonly string[] = [
-  COMMAND_IDS.compareWith,
-  COMMAND_IDS.compareWithWorkingCopy,
-  COMMAND_IDS.compareWithPrevious,
-  COMMAND_IDS.compareTwoCommits,
-  COMMAND_IDS.compareFileWithCommit,
-  COMMAND_IDS.reopenLast,
-  COMMAND_IDS.showLogs,
-];
+const ALL_COMMAND_IDS: readonly string[] = Object.values(COMMAND_IDS);
 
 describe('activation', () => {
   it('extension is present, activates, and every command id is registered', async () => {

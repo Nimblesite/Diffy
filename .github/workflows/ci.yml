@@ -34,8 +34,12 @@ jobs:
       - name: Format check
         run: make fmt CHECK=1
 
-      - name: Lint
+      - name: Lint (includes shipwright.json schema check)
         run: make lint
+
+      - name: Dry-run release stamp (proves the script still runs)
+        shell: bash
+        run: node scripts/stamp-release-version.mjs 0.0.0 --dry
 
       - name: Test (Linux, xvfb)
         if: runner.os == 'Linux'
