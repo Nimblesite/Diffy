@@ -20,6 +20,7 @@ const run = (cmd, args, env) => {
     cwd: repoRoot,
     stdio: 'inherit',
     env: { ...process.env, ...env },
+    shell: process.platform === 'win32',
   });
   if (r.status !== 0) {
     process.stderr.write(`\n!! ${cmd} ${args.join(' ')} exited ${r.status ?? '?'}\n`);
