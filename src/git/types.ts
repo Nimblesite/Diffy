@@ -40,7 +40,7 @@ export interface IndexRev {
 
 export type RevSpec = CommitRev | WorkingCopyRev | IndexRev;
 
-export type DiffyAddressableRev = CommitRev | IndexRev;
+export type DifflyAddressableRev = CommitRev | IndexRev;
 
 export type RefType = (typeof REF_TYPES)[keyof typeof REF_TYPES];
 

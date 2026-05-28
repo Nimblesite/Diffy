@@ -1,8 +1,8 @@
 import { REV_KINDS, SCHEME, URI_AUTHORITIES, URI_PARSE_ERROR_KINDS } from "../constants";
 import { type Result, ok, err } from "../result";
-import type { DiffyAddressableRev, Sha } from "../git/types";
+import type { DifflyAddressableRev, Sha } from "../git/types";
 
-export type DiffyUriParseError =
+export type DifflyUriParseError =
   | {
       readonly kind: typeof URI_PARSE_ERROR_KINDS.invalidScheme;
       readonly got: string;
@@ -22,8 +22,8 @@ export type DiffyUriParseError =
       readonly reason: string;
     };
 
-export interface DiffyUriComponents {
-  readonly rev: DiffyAddressableRev;
+export interface DifflyUriComponents {
+  readonly rev: DifflyAddressableRev;
   readonly path: string;
 }
 
@@ -32,7 +32,7 @@ const PATH_SEP = "/";
 
 const encodePath = (path: string): string => path.split(PATH_SEP).map(encodeURIComponent).join(PATH_SEP);
 
-const decodePath = (encoded: string): Result<string, DiffyUriParseError> => {
+const decodePath = (encoded: string): Result<string, DifflyUriParseError> => {
   try {
     return ok(encoded.split(PATH_SEP).map(decodeURIComponent).join(PATH_SEP));
   } catch {
@@ -40,7 +40,7 @@ const decodePath = (encoded: string): Result<string, DiffyUriParseError> => {
   }
 };
 
-export const buildDiffyUri = (rev: DiffyAddressableRev, path: string): string => {
+export const buildDifflyUri = (rev: DifflyAddressableRev, path: string): string => {
   const encoded = encodePath(path);
   if (rev.kind === REV_KINDS.commit) {
     return `${SCHEME}${SCHEME_SEP}${URI_AUTHORITIES.commit}/${rev.sha}/${encoded}`;
@@ -48,7 +48,7 @@ export const buildDiffyUri = (rev: DiffyAddressableRev, path: string): string =>
   return `${SCHEME}${SCHEME_SEP}${URI_AUTHORITIES.index}/${encoded}`;
 };
 
-const parseCommitUri = (rest: string): Result<DiffyUriComponents, DiffyUriParseError> => {
+const parseCommitUri = (rest: string): Result<DifflyUriComponents, DifflyUriParseError> => {
   const slash = rest.indexOf(PATH_SEP);
   if (slash <= 0) {
     return err({ kind: URI_PARSE_ERROR_KINDS.missingSha });
@@ -65,7 +65,7 @@ const parseCommitUri = (rest: string): Result<DiffyUriComponents, DiffyUriParseE
   return ok({ rev: { kind: REV_KINDS.commit, sha }, path: decoded.value });
 };
 
-const parseIndexUri = (rest: string): Result<DiffyUriComponents, DiffyUriParseError> => {
+const parseIndexUri = (rest: string): Result<DifflyUriComponents, DifflyUriParseError> => {
   if (rest === "") {
     return err({ kind: URI_PARSE_ERROR_KINDS.emptyPath });
   }
@@ -82,7 +82,7 @@ interface UriSplit {
   readonly rest: string;
 }
 
-const splitUri = (uri: string): Result<UriSplit, DiffyUriParseError> => {
+const splitUri = (uri: string): Result<UriSplit, DifflyUriParseError> => {
   const sep = uri.indexOf(SCHEME_SEP);
   if (sep < 0) {
     return err({
@@ -106,7 +106,7 @@ const splitUri = (uri: string): Result<UriSplit, DiffyUriParseError> => {
   });
 };
 
-export const parseDiffyUri = (uri: string): Result<DiffyUriComponents, DiffyUriParseError> => {
+export const parseDifflyUri = (uri: string): Result<DifflyUriComponents, DifflyUriParseError> => {
   const split = splitUri(uri);
   if (!split.ok) {
     return split;

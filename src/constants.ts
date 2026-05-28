@@ -1,19 +1,19 @@
-export const SCHEME = "diffy";
+export const SCHEME = "diffly";
 
-export const OUTPUT_CHANNEL_NAME = "Diffy";
+export const OUTPUT_CHANNEL_NAME = "Diffly";
 
 export const COMMAND_IDS = {
-  compareWith: "diffy.compareWith",
-  compareWithWorkingCopy: "diffy.compareWithWorkingCopy",
-  compareWithPrevious: "diffy.compareWithPrevious",
-  compareWithBranch: "diffy.compareWithBranch",
-  compareWithTag: "diffy.compareWithTag",
-  compareTwoCommits: "diffy.compareTwoCommits",
-  compareFileWithCommit: "diffy.compareFileWithCommit",
-  compareFileWithBranch: "diffy.compareFileWithBranch",
-  compareFileWithTag: "diffy.compareFileWithTag",
-  reopenLast: "diffy.reopenLast",
-  showLogs: "diffy.showLogs",
+  compareWith: "diffly.compareWith",
+  compareWithWorkingCopy: "diffly.compareWithWorkingCopy",
+  compareWithPrevious: "diffly.compareWithPrevious",
+  compareWithBranch: "diffly.compareWithBranch",
+  compareWithTag: "diffly.compareWithTag",
+  compareTwoCommits: "diffly.compareTwoCommits",
+  compareFileWithCommit: "diffly.compareFileWithCommit",
+  compareFileWithBranch: "diffly.compareFileWithBranch",
+  compareFileWithTag: "diffly.compareFileWithTag",
+  reopenLast: "diffly.reopenLast",
+  showLogs: "diffly.showLogs",
 } as const;
 
 export const BUILT_IN_COMMANDS = {
@@ -22,11 +22,11 @@ export const BUILT_IN_COMMANDS = {
 } as const;
 
 export const CONTEXT_KEYS = {
-  gitAvailable: "diffy.gitAvailable",
+  gitAvailable: "diffly.gitAvailable",
 } as const;
 
 export const MEMENTO_KEYS = {
-  lastComparison: "diffy.lastComparison",
+  lastComparison: "diffly.lastComparison",
 } as const;
 
 export const URI_AUTHORITIES = {
@@ -110,9 +110,9 @@ export const MENU_WHEN = {
   never: "false",
 } as const;
 
-export const MENU_GROUP_PREFIX = "diffy";
+export const MENU_GROUP_PREFIX = "diffly";
 
-export const TITLE_PREFIX = "Diffy:";
+export const TITLE_PREFIX = "Diffly:";
 
 export const UI_TEXT = {
   workingCopy: "Working Copy",
@@ -134,7 +134,7 @@ export const UI_TEXT = {
   refLabel: "Ref",
   binaryStat: "binary",
   justNow: "just now",
-  noChanges: "Diffy: no changes between selected sides.",
+  noChanges: "Diffly: no changes between selected sides.",
   pathArrow: "↔",
   pathDash: "—",
   bulletDot: "•",

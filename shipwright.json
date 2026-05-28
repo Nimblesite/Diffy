@@ -1,15 +1,15 @@
 {
   "manifestVersion": 1,
   "product": {
-    "id": "diffy",
-    "displayName": "Diffy",
+    "id": "diffly",
+    "displayName": "Diffly",
     "version": "0.1.0",
-    "repository": "https://github.com/MelbourneDeveloper/Diffy",
-    "homepage": "https://github.com/MelbourneDeveloper/Diffy"
+    "repository": "https://github.com/Nimblesite/Diffly",
+    "homepage": "https://github.com/Nimblesite/Diffly"
   },
   "components": [
     {
-      "id": "diffy-vscode",
+      "id": "diffly-vscode",
       "kind": "extension-vscode",
       "language": "typescript",
       "expectedVersion": "${PRODUCT_VERSION}",

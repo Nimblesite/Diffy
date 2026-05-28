@@ -1,6 +1,6 @@
 {
   "_agent_pmo": "74cf183",
-  "name": "Diffy (Node.js)",
+  "name": "Diffly (Node.js)",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20",
   "remoteUser": "vscode",
   "postCreateCommand": "make setup",

@@ -1,16 +1,16 @@
-# Diffy — VSCode Extension Spec
+# Diffly — VSCode Extension Spec
 
 Execution plan and live TODO checklist: [../plans/plan.md](../plans/plan.md).
 
 ## Context
 
-Diffy is a new VSCode extension whose only job is **"pick two things and diff them"** against a git repository and allow editing of the working state side. Side A is a commit; Side B can be another commit, the working copy, the index, or a branch/tag (resolved to a commit).
+Diffly is a new VSCode extension whose only job is **"pick two things and diff them"** against a git repository and allow editing of the working state side. Side A is a commit; Side B can be another commit, the working copy, the index, or a branch/tag (resolved to a commit).
 
-**KISS principle, enforced**: Diffy adds **no new views, no activity-bar icon, no tree provider, no webviews**. Everything is wired as **context-menu entries on VSCode's existing Source Control surfaces** (SCM history, SCM resource state, editor title, explorer) plus a small number of palette commands. Browsing many changed files between two commits is handled by a **multi-step QuickPick**, not a persistent panel. The user already has a Rust LSP framework (`lsp_toolkit`) and Rust+TS extension precedent (`GithubIssues`) — both explicitly rejected for Diffy.
+**KISS principle, enforced**: Diffly adds **no new views, no activity-bar icon, no tree provider, no webviews**. Everything is wired as **context-menu entries on VSCode's existing Source Control surfaces** (SCM history, SCM resource state, editor title, explorer) plus a small number of palette commands. Browsing many changed files between two commits is handled by a **multi-step QuickPick**, not a persistent panel. The user already has a Rust LSP framework (`lsp_toolkit`) and Rust+TS extension precedent (`GithubIssues`) — both explicitly rejected for Diffly.
 
 ## Stack decision: pure TypeScript
 
-LSP exposes **language** semantics (completion, hover, diagnostics). Diffy does none of that — it shells out to `git` and hands two URIs to `vscode.diff`. A Rust LSP adds per-platform binaries, IPC plumbing, and deployment complexity for zero capability or perf gain. Match the existing [CommandTree](../../../CommandTree) TS-only structure.
+LSP exposes **language** semantics (completion, hover, diagnostics). Diffly does none of that — it shells out to `git` and hands two URIs to `vscode.diff`. A Rust LSP adds per-platform binaries, IPC plumbing, and deployment complexity for zero capability or perf gain. Match the existing [CommandTree](../../../CommandTree) TS-only structure.
 
 ## Non-negotiables (inherited from CommandTree CLAUDE.md)
 
@@ -29,20 +29,20 @@ LSP exposes **language** semantics (completion, hover, diagnostics). Diffy does 
 
 ```
 SCM history view, right-click a commit:
-  ├── Diffy: Compare with…              → SideBPicker → diff (single file) or multi-file QuickPick
-  ├── Diffy: Compare with Working Copy  → multi-file QuickPick → diff
-  └── Diffy: Compare with Previous      → diff against commit^1
+  ├── Diffly: Compare with…              → SideBPicker → diff (single file) or multi-file QuickPick
+  ├── Diffly: Compare with Working Copy  → multi-file QuickPick → diff
+  └── Diffly: Compare with Previous      → diff against commit^1
 
 SCM Changes view, right-click a changed file:
-  └── Diffy: Compare with Commit…       → CommitPicker → diff this file at picked commit vs working copy
+  └── Diffly: Compare with Commit…       → CommitPicker → diff this file at picked commit vs working copy
 
 Editor title bar / Explorer, right-click a file:
-  └── Diffy: Compare with Commit…       → CommitPicker → diff this file at picked commit vs working copy
+  └── Diffly: Compare with Commit…       → CommitPicker → diff this file at picked commit vs working copy
 
 Command palette:
-  ├── Diffy: Compare Two Commits        → CommitPicker → SideBPicker → file QuickPick → diff
-  ├── Diffy: Compare Current File with Commit
-  └── Diffy: Reopen Last Comparison
+  ├── Diffly: Compare Two Commits        → CommitPicker → SideBPicker → file QuickPick → diff
+  ├── Diffly: Compare Current File with Commit
+  └── Diffly: Reopen Last Comparison
 ```
 
 **Browsing many changed files between two commits**: after Side A and Side B are picked, show a `QuickPick<FileItem>` listing all changed files with `+N -M` in the description and `A/M/D/R/C` status as the detail. Picking a file opens `vscode.diff`; the QuickPick stays open (`ignoreFocusOut: true`) so the user can dismiss the diff and pick another file. **This replaces the tree view entirely.**
@@ -50,7 +50,7 @@ Command palette:
 ## Project layout
 
 ```
-/Users/christianfindlay/Documents/Code/Diffy/
+/Users/christianfindlay/Documents/Code/Diffly/
 ├── .github/workflows/{ci.yml,release.yml}
 ├── .vscode-test.mjs
 ├── Makefile
@@ -80,13 +80,13 @@ Command palette:
 │   │   ├── parsers.ts              # NUL-delimited porcelain parsers (no regex)
 │   │   └── types.ts                # Commit, ChangedFile, DiffStat, RevSpec, Ref
 │   ├── providers/
-│   │   └── DiffyContentProvider.ts # TextDocumentContentProvider for diffy://
+│   │   └── DifflyContentProvider.ts # TextDocumentContentProvider for diffly://
 │   ├── ui/
 │   │   ├── CommitPicker.ts         # QuickPick over git log
 │   │   ├── RefPicker.ts            # branches + tags, resolves to RevSpec
 │   │   ├── SideBPicker.ts          # Commit | Working Copy | Index | Branch/Tag
 │   │   ├── FilePicker.ts           # QuickPick over changed files with stats
-│   │   └── uri.ts                  # buildDiffyUri / parseDiffyUri (pure)
+│   │   └── uri.ts                  # buildDifflyUri / parseDifflyUri (pure)
 │   ├── commands/
 │   │   ├── compareWith.ts          # SCM-history "Compare with…" entry
 │   │   ├── compareWithWorkingCopy.ts
@@ -118,18 +118,18 @@ Command palette:
   - `show({ rev, path }): Promise<Result<string, GitError>>` → `git show <rev>:<path>`
   - `refs(): Promise<Result<readonly Ref[], GitError>>` → `git for-each-ref --format='%(refname:short)%00%(objectname)%00%(objecttype)'`
   - `revParse(name): Promise<Result<Sha, GitError>>`
-- **`providers/DiffyContentProvider.ts`** — `TextDocumentContentProvider` for scheme `diffy`. URI shapes:
-  - `diffy://commit/<sha>/<relpath>` → `git show <sha>:<path>`
-  - `diffy://index/<relpath>` → `git show :<path>` (fallback when built-in git ext's `toGitUri` is unavailable)
+- **`providers/DifflyContentProvider.ts`** — `TextDocumentContentProvider` for scheme `diffly`. URI shapes:
+  - `diffly://commit/<sha>/<relpath>` → `git show <sha>:<path>`
+  - `diffly://index/<relpath>` → `git show :<path>` (fallback when built-in git ext's `toGitUri` is unavailable)
   Returns empty string for deleted files. Pure dispatch — URI parse + GitRepo call.
 - **`ui/CommitPicker.ts`** / **`RefPicker.ts`** / **`SideBPicker.ts`** / **`FilePicker.ts`** — `vscode.window.createQuickPick<T>()` wrappers returning `Result<T, Cancelled>`. SideB prepends synthetic items: `WORKING_COPY`, `INDEX`, `BRANCH_OR_TAG…` (last opens RefPicker). FilePicker stays open after selection so multiple files can be diffed in sequence from one comparison.
-- **`ui/uri.ts`** — `buildDiffyUri(rev, path): Uri`, `parseDiffyUri(uri): Result<{rev, path}, ParseError>`. Pure, unit-tested. Handles spaces/unicode/`#`/`?` via proper URI encoding.
+- **`ui/uri.ts`** — `buildDifflyUri(rev, path): Uri`, `parseDifflyUri(uri): Result<{rev, path}, ParseError>`. Pure, unit-tested. Handles spaces/unicode/`#`/`?` via proper URI encoding.
 - **Types**
   - `RevSpec = { kind: 'commit', sha: string } | { kind: 'workingCopy' } | { kind: 'index' }` — refs resolve to `commit` before reaching anything downstream.
   - `uriFor(rev, absPath, relPath)`:
-    - `commit` → `diffy://commit/<sha>/<relpath>`
+    - `commit` → `diffly://commit/<sha>/<relpath>`
     - `workingCopy` → `Uri.file(absPath)`
-    - `index` → built-in git extension's `toGitUri(fileUri, '~')` if available, else `diffy://index/<relpath>`
+    - `index` → built-in git extension's `toGitUri(fileUri, '~')` if available, else `diffly://index/<relpath>`
 
 ## `package.json` contributions
 
@@ -139,32 +139,32 @@ Command palette:
   "extensionDependencies": ["vscode.git"],
   "contributes": {
     "commands": [
-      { "command": "diffy.compareWith",              "title": "Diffy: Compare with…" },
-      { "command": "diffy.compareWithWorkingCopy",   "title": "Diffy: Compare with Working Copy" },
-      { "command": "diffy.compareWithPrevious",      "title": "Diffy: Compare with Previous" },
-      { "command": "diffy.compareTwoCommits",        "title": "Diffy: Compare Two Commits" },
-      { "command": "diffy.compareFileWithCommit",    "title": "Diffy: Compare with Commit…" },
-      { "command": "diffy.reopenLast",               "title": "Diffy: Reopen Last Comparison" }
+      { "command": "diffly.compareWith",              "title": "Diffly: Compare with…" },
+      { "command": "diffly.compareWithWorkingCopy",   "title": "Diffly: Compare with Working Copy" },
+      { "command": "diffly.compareWithPrevious",      "title": "Diffly: Compare with Previous" },
+      { "command": "diffly.compareTwoCommits",        "title": "Diffly: Compare Two Commits" },
+      { "command": "diffly.compareFileWithCommit",    "title": "Diffly: Compare with Commit…" },
+      { "command": "diffly.reopenLast",               "title": "Diffly: Reopen Last Comparison" }
     ],
     "menus": {
       "scm/history/item/context": [
-        { "command": "diffy.compareWith",            "when": "scmProvider == git", "group": "diffy@1" },
-        { "command": "diffy.compareWithWorkingCopy", "when": "scmProvider == git", "group": "diffy@2" },
-        { "command": "diffy.compareWithPrevious",    "when": "scmProvider == git", "group": "diffy@3" }
+        { "command": "diffly.compareWith",            "when": "scmProvider == git", "group": "diffly@1" },
+        { "command": "diffly.compareWithWorkingCopy", "when": "scmProvider == git", "group": "diffly@2" },
+        { "command": "diffly.compareWithPrevious",    "when": "scmProvider == git", "group": "diffly@3" }
       ],
       "scm/resourceState/context": [
-        { "command": "diffy.compareFileWithCommit",  "when": "scmProvider == git", "group": "diffy@1" }
+        { "command": "diffly.compareFileWithCommit",  "when": "scmProvider == git", "group": "diffly@1" }
       ],
       "editor/title/context": [
-        { "command": "diffy.compareFileWithCommit",  "when": "resourceScheme == file", "group": "3_compare" }
+        { "command": "diffly.compareFileWithCommit",  "when": "resourceScheme == file", "group": "3_compare" }
       ],
       "explorer/context": [
-        { "command": "diffy.compareFileWithCommit",  "when": "resourceScheme == file && !explorerResourceIsFolder", "group": "3_compare" }
+        { "command": "diffly.compareFileWithCommit",  "when": "resourceScheme == file && !explorerResourceIsFolder", "group": "3_compare" }
       ],
       "commandPalette": [
-        { "command": "diffy.compareWith",            "when": "false" },
-        { "command": "diffy.compareWithWorkingCopy", "when": "false" },
-        { "command": "diffy.compareWithPrevious",    "when": "false" }
+        { "command": "diffly.compareWith",            "when": "false" },
+        { "command": "diffly.compareWithWorkingCopy", "when": "false" },
+        { "command": "diffly.compareWithPrevious",    "when": "false" }
       ]
     }
   }
@@ -177,7 +177,7 @@ The three SCM-history commands receive the commit object as an argument from VSC
 
 **SCM history: "Compare with…"** (entry point passes the commit)
 ```
-diffy.compareWith(historyItem)
+diffly.compareWith(historyItem)
   → revA = { kind:'commit', sha: historyItem.id }
   → SideBPicker → revB
   → GitRepo.nameStatus({ from: revA, to: revB }) + numstat
@@ -192,7 +192,7 @@ diffy.compareWith(historyItem)
 
 **Palette: "Compare Two Commits"**
 ```
-diffy.compareTwoCommits
+diffly.compareTwoCommits
   → resolve repo via vscode.git API (auto if single)
   → GitRepo.log({ limit:200 }) → CommitPicker → revA
   → SideBPicker → revB
@@ -201,9 +201,9 @@ diffy.compareTwoCommits
 
 **Editor/Explorer/SCM-resource: "Compare with Commit…"**
 ```
-diffy.compareFileWithCommit(uri)
+diffly.compareFileWithCommit(uri)
   → GitRepo.log → CommitPicker → rev
-  → leftUri  = buildDiffyUri({ kind:'commit', sha:rev }, relPath)
+  → leftUri  = buildDifflyUri({ kind:'commit', sha:rev }, relPath)
   → rightUri = uri  (file://)
   → vscode.diff(leftUri, rightUri, `${shortSha} ↔ Working Copy — ${basename}`)
 ```
@@ -218,8 +218,8 @@ diffy.compareFileWithCommit(uri)
 **E2E (`src/test/suite/`, `@vscode/test-electron`, black-box only):**
 - `activation.test.ts` — extension activates; all commands registered (`vscode.commands.getCommands(true)`)
 - `compareTwoCommits.test.ts` — invoke palette command against fixture repo; assert FilePicker opens with expected file list; selecting a file opens a `TabInputTextDiff` tab (poll `vscode.window.tabGroups.all`)
-- `compareFileWithCommit.test.ts` — open a fixture file, invoke command, assert diff tab opens with expected `diffy://` left URI
-- `contentProvider.test.ts` — `workspace.openTextDocument(Uri.parse('diffy://commit/<sha>/file.txt'))` returns the historical content from the seed repo
+- `compareFileWithCommit.test.ts` — open a fixture file, invoke command, assert diff tab opens with expected `diffly://` left URI
+- `contentProvider.test.ts` — `workspace.openTextDocument(Uri.parse('diffly://commit/<sha>/file.txt'))` returns the historical content from the seed repo
 
 Coverage starts at 80% in `coverage-thresholds.json`; ratchet-only.
 

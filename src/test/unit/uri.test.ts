@@ -1,129 +1,129 @@
 import { strict as assert } from "node:assert";
 import { REV_KINDS, URI_PARSE_ERROR_KINDS } from "../../constants";
-import { buildDiffyUri, parseDiffyUri } from "../../ui/uri";
+import { buildDifflyUri, parseDifflyUri } from "../../ui/uri";
 import { expectErr, expectOk } from "../../result";
-import type { DiffyAddressableRev } from "../../git/types";
+import type { DifflyAddressableRev } from "../../git/types";
 
 const SHA = "abc1234def567890fedcba0987654321aaaaaaaa";
 
-const commit = (sha: string): DiffyAddressableRev => ({
+const commit = (sha: string): DifflyAddressableRev => ({
   kind: REV_KINDS.commit,
   sha,
 });
-const index = (): DiffyAddressableRev => ({ kind: REV_KINDS.index });
+const index = (): DifflyAddressableRev => ({ kind: REV_KINDS.index });
 
-const roundTrip = (rev: DiffyAddressableRev, path: string): void => {
-  const uri = buildDiffyUri(rev, path);
-  const parsed = parseDiffyUri(uri);
+const roundTrip = (rev: DifflyAddressableRev, path: string): void => {
+  const uri = buildDifflyUri(rev, path);
+  const parsed = parseDifflyUri(uri);
   expectOk(parsed);
   assert.deepEqual(parsed.value.rev, rev);
   assert.equal(parsed.value.path, path);
 };
 
-describe("buildDiffyUri", () => {
+describe("buildDifflyUri", () => {
   it("builds a commit URI with sha and path", () => {
-    const uri = buildDiffyUri(commit(SHA), "src/file.ts");
-    assert.equal(uri, `diffy://commit/${SHA}/src/file.ts`);
+    const uri = buildDifflyUri(commit(SHA), "src/file.ts");
+    assert.equal(uri, `diffly://commit/${SHA}/src/file.ts`);
   });
 
   it("builds an index URI without sha", () => {
-    const uri = buildDiffyUri(index(), "src/file.ts");
-    assert.equal(uri, "diffy://index/src/file.ts");
+    const uri = buildDifflyUri(index(), "src/file.ts");
+    assert.equal(uri, "diffly://index/src/file.ts");
   });
 
   it("percent-encodes spaces in path segments", () => {
-    const uri = buildDiffyUri(commit(SHA), "a folder/b file.ts");
-    assert.equal(uri, `diffy://commit/${SHA}/a%20folder/b%20file.ts`);
+    const uri = buildDifflyUri(commit(SHA), "a folder/b file.ts");
+    assert.equal(uri, `diffly://commit/${SHA}/a%20folder/b%20file.ts`);
   });
 
   it("percent-encodes ? and # so they are not parsed as query/fragment", () => {
-    const uri = buildDiffyUri(commit(SHA), "weird?name#here.ts");
-    assert.equal(uri, `diffy://commit/${SHA}/weird%3Fname%23here.ts`);
+    const uri = buildDifflyUri(commit(SHA), "weird?name#here.ts");
+    assert.equal(uri, `diffly://commit/${SHA}/weird%3Fname%23here.ts`);
   });
 
   it("preserves forward slashes as segment separators", () => {
-    const uri = buildDiffyUri(commit(SHA), "a/b/c/d.ts");
-    assert.equal(uri, `diffy://commit/${SHA}/a/b/c/d.ts`);
+    const uri = buildDifflyUri(commit(SHA), "a/b/c/d.ts");
+    assert.equal(uri, `diffly://commit/${SHA}/a/b/c/d.ts`);
   });
 
   it("encodes unicode characters in path segments", () => {
-    const uri = buildDiffyUri(commit(SHA), "src/日本語.ts");
+    const uri = buildDifflyUri(commit(SHA), "src/日本語.ts");
     const encoded = encodeURIComponent("日本語");
-    assert.equal(uri, `diffy://commit/${SHA}/src/${encoded}.ts`);
+    assert.equal(uri, `diffly://commit/${SHA}/src/${encoded}.ts`);
   });
 });
 
-describe("parseDiffyUri", () => {
+describe("parseDifflyUri", () => {
   it("parses a commit URI and decodes the path", () => {
-    const r = parseDiffyUri(`diffy://commit/${SHA}/src/file.ts`);
+    const r = parseDifflyUri(`diffly://commit/${SHA}/src/file.ts`);
     expectOk(r);
     assert.deepEqual(r.value.rev, { kind: REV_KINDS.commit, sha: SHA });
     assert.equal(r.value.path, "src/file.ts");
   });
 
   it("parses an index URI and decodes the path", () => {
-    const r = parseDiffyUri("diffy://index/src/file.ts");
+    const r = parseDifflyUri("diffly://index/src/file.ts");
     expectOk(r);
     assert.deepEqual(r.value.rev, { kind: REV_KINDS.index });
     assert.equal(r.value.path, "src/file.ts");
   });
 
-  it("rejects a non-diffy scheme", () => {
-    const r = parseDiffyUri("file:///some/path.ts");
+  it("rejects a non-diffly scheme", () => {
+    const r = parseDifflyUri("file:///some/path.ts");
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.invalidScheme);
   });
 
   it("rejects an unknown authority", () => {
-    const r = parseDiffyUri(`diffy://stash/${SHA}/x.ts`);
+    const r = parseDifflyUri(`diffly://stash/${SHA}/x.ts`);
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.invalidAuthority);
   });
 
   it("rejects a commit URI with no path after the sha", () => {
-    const r = parseDiffyUri(`diffy://commit/${SHA}/`);
+    const r = parseDifflyUri(`diffly://commit/${SHA}/`);
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.emptyPath);
   });
 
   it("rejects a commit URI with no sha", () => {
-    const r = parseDiffyUri("diffy://commit//file.ts");
+    const r = parseDifflyUri("diffly://commit//file.ts");
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.missingSha);
   });
 
   it("rejects an index URI with no path", () => {
-    const r = parseDiffyUri("diffy://index/");
+    const r = parseDifflyUri("diffly://index/");
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.emptyPath);
   });
 
   it("rejects a malformed URI with no scheme separator", () => {
-    const r = parseDiffyUri("not-a-uri");
+    const r = parseDifflyUri("not-a-uri");
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.malformed);
   });
 
   it("rejects a URI missing the authority/path slash", () => {
-    const r = parseDiffyUri("diffy://commit");
+    const r = parseDifflyUri("diffly://commit");
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.malformed);
   });
 
   it("rejects a URI with malformed percent encoding", () => {
-    const r = parseDiffyUri(`diffy://commit/${SHA}/bad%ZZpath.ts`);
+    const r = parseDifflyUri(`diffly://commit/${SHA}/bad%ZZpath.ts`);
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.badEncoding);
   });
 
   it("rejects an index URI with malformed percent encoding", () => {
-    const r = parseDiffyUri("diffy://index/bad%ZZpath.ts");
+    const r = parseDifflyUri("diffly://index/bad%ZZpath.ts");
     expectErr(r);
     assert.equal(r.error.kind, URI_PARSE_ERROR_KINDS.badEncoding);
   });
 });
 
-describe("buildDiffyUri ↔ parseDiffyUri round-trip", () => {
+describe("buildDifflyUri ↔ parseDifflyUri round-trip", () => {
   it("round-trips a simple commit URI", () => {
     roundTrip(commit(SHA), "src/file.ts");
   });

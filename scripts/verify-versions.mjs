@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Shipwright SWR-REL-VERSION-VERIFY for Diffy.
+// Shipwright SWR-REL-VERSION-VERIFY for Diffly.
 //
 // After scripts/stamp-release-version.mjs runs, assert that every deployed
 // version carrier in the runner working tree agrees with the expected version.
