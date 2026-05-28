@@ -134,20 +134,6 @@ Whenever Diffy asks you to pick Side B, you get four choices:
 
 Bugs, feature requests, and PRs welcome at https://github.com/MelbourneDeveloper/Diffy/issues.
 
-## Development
-
-```sh
-make setup     # install deps
-make build     # tsc
-make test      # fail-fast unit + e2e, enforces coverage threshold
-make lint
-make fmt
-make ci        # what CI runs
-make package   # build .vsix
-```
-
-See [CLAUDE.md](CLAUDE.md) for the full architecture and contributor rules.
-
 ## License
 
 MIT
