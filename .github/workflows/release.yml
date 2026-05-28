@@ -46,7 +46,7 @@ jobs:
             echo "::error::VSCODE_MARKETPLACE_PAT not accessible. Add Diffy to the secret's allowed repositories under Org Settings → Secrets and variables → Actions."
             exit 1
           fi
-          npx vsce publish --packagePath "diffy-$VERSION.vsix"
+          npx vsce publish --packagePath "diffy-$VERSION.vsix" --allow-proposed-apis contribSourceControlHistoryItemMenu
 
       - name: Attach VSIX to GitHub release
         uses: softprops/action-gh-release@v2
