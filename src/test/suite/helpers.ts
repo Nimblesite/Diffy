@@ -155,36 +155,36 @@ const describeOpenTabs = (): string => {
     .map((t) => {
       const input: unknown = t.input;
       const ctor = typeof input === "object" && input !== null ? input.constructor.name : typeof input;
-      const hasTextDiffs = typeof input === "object" && input !== null && "textDiffs" in input;
-      return `[${ctor}${hasTextDiffs ? "+textDiffs" : ""}] ${t.label}`;
+      const diffs = multiDiffTextDiffs(t);
+      const tag = diffs === undefined ? ctor : `${ctor}+textDiffs(${diffs.length.toString()})`;
+      return `[${tag}] ${t.label}`;
     })
     .join(" | ");
 };
 
+// The multi-diff editor opens before its child resources finish resolving, so
+// the tab's `textDiffs` array starts empty and fills in a moment later. The
+// fill-in does not always emit onDidChangeTabs, so we poll for a multi-diff tab
+// whose `textDiffs` is populated rather than settling for the first empty one.
 export const waitForMultiDiffTab = async ({
   timeoutMs = 20000,
 }: {
   timeoutMs?: number;
 } = {}): Promise<vscode.Tab> => {
-  return await new Promise<vscode.Tab>((resolve, reject) => {
-    const existing = allMultiDiffTabs()[0];
-    if (existing !== undefined) {
-      resolve(existing);
-      return;
+  const POLL_MS = 100;
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const ready = allMultiDiffTabs().find((t) => multiDiffEntries(t).length > 0);
+    if (ready !== undefined) {
+      return ready;
     }
-    const timer = setTimeout(() => {
-      sub.dispose();
-      reject(new Error(`Timed out waiting for multi-diff tab. Open tabs: ${describeOpenTabs()}`));
-    }, timeoutMs);
-    const sub = vscode.window.tabGroups.onDidChangeTabs(() => {
-      const t = allMultiDiffTabs()[0];
-      if (t !== undefined) {
-        clearTimeout(timer);
-        sub.dispose();
-        resolve(t);
-      }
+    if (Date.now() >= deadline) {
+      throw new Error(`Timed out waiting for a populated multi-diff tab. Open tabs: ${describeOpenTabs()}`);
+    }
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, POLL_MS);
     });
-  });
+  }
 };
 
 export const closeAllEditors = async (): Promise<void> => {

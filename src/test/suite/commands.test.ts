@@ -53,9 +53,14 @@ const expectMultiDiff = async ({
   leftSha: string;
 }): Promise<readonly MultiDiffEntry[]> => {
   const tab = await waitForMultiDiffTab();
-  assert.equal(labelStrings(tab), title, "multi-diff editor title");
-  assert.doesNotMatch(labelStrings(tab), /git/, "the literal 'git' must never leak into the title");
-  assert.doesNotMatch(labelStrings(tab), /—/, "the changes-list title carries no per-file basename");
+  const label = labelStrings(tab);
+  // VSCode's multi-diff editor appends its own " (N files)" count to the title
+  // we pass, so the human-scannable comparison title is the label's prefix and
+  // the changed-file count is its suffix — both are exactly what the user sees.
+  assert.ok(label.startsWith(title), `multi-diff title starts with "${title}" — got "${label}"`);
+  assert.match(label, /\(\d+ files?\)$/, `multi-diff title ends with a changed-file count — got "${label}"`);
+  assert.doesNotMatch(label, /git/, "the literal 'git' must never leak into the title");
+  assert.doesNotMatch(label, /—/, "the changes-list title carries no per-file basename");
   const entries = multiDiffEntries(tab);
   assert.ok(entries.length >= 1, "at least one changed file is listed");
   for (const e of entries) {
