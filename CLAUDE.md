@@ -4,6 +4,8 @@
 
 ⚠️ DO NOT KILL VSCODE PROCESSES ⚠️
 
+⚠️ ASKING THE USER QUESTIONS IS ⛔️ ILLEGAL. USE YOUR JUDGEMENT ⚠️
+
 ⚠️ **TOKEN DISCIPLINE.** Check file size first. `Grep` over `Read`. Use `offset`/`limit`.
 Smallest diff that solves the problem. Delete dead code, unused imports, stale comments.
 Call out irrelevant context before proceeding. Bloat degrades reasoning. ⚠️

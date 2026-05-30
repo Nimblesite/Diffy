@@ -36,6 +36,15 @@ export const readSeedShas = (): SeedShas => {
   return { first, second, third };
 };
 
+// Reproduces how VSCode invokes `scm/historyItem/context` commands from the
+// commit graph: the SourceControl provider (whose id is "git") is passed FIRST,
+// then the history item. A handler that reads the first argument's `id` by
+// mistake gets the literal "git" instead of the commit SHA.
+export const scmHistoryArgs = (sha: string, parentIds: readonly string[] = []): readonly [unknown, unknown] => [
+  { id: "git", rootUri: vscode.Uri.file(workspaceRoot()), label: "Git" },
+  { id: sha, parentIds, message: "seed commit", displayId: sha.slice(0, 8) },
+];
+
 export const tick = async (count = 30): Promise<void> => {
   await new Promise<void>((resolve) => {
     let i = 0;

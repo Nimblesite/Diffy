@@ -9,6 +9,7 @@ import {
   moveNext,
   openFileInEditor,
   readSeedShas,
+  scmHistoryArgs,
   tabInputUris,
   tick,
   waitForDiffTab,
@@ -484,5 +485,163 @@ describe("Diffr commands — end-to-end through real QuickPick UI", () => {
     await vscode.commands.executeCommand(COMMAND_IDS.compareFileWithTag, outside);
     await tick(40);
     assert.equal(allDiffTabs().length, before);
+  });
+});
+
+// These drive each commit-graph context-menu command with the EXACT argument
+// shape a real right-click in the SCM history graph produces: the git
+// SourceControl provider (id "git") first, then the history item. They prove
+// the menu actions open the correct diff end-to-end — not just the synthetic
+// single-argument shape used above. Before the fix these all failed because the
+// provider's "git" id was fed to git as a revision.
+describe("Diffr commit-graph context menu — real SCM history-item invocation", () => {
+  before(async () => {
+    await ensureActivated();
+  });
+
+  beforeEach(async () => {
+    await closeAllEditors();
+    await dismissQuickPick();
+    await tick(5);
+  });
+
+  afterEach(async () => {
+    await dismissQuickPick();
+    await closeAllEditors();
+    await tick(5);
+  });
+
+  it("compareWith [graph]: provider+historyItem → SideB=Working Copy → diff opens for the commit", async () => {
+    const shas = readSeedShas();
+    const before = allDiffTabs().length;
+    const flow = vscode.commands.executeCommand(COMMAND_IDS.compareWith, ...scmHistoryArgs(shas.first, []));
+
+    // SideBPicker: top = Working Copy
+    await accept();
+    // FilePicker: top
+    await accept();
+
+    const diffTab = await waitForDiffTab();
+    const uris = tabInputUris(diffTab);
+    assert.equal(uris.left.scheme, "diffr", "left side is a diffr commit document");
+    assert.equal(uris.right.scheme, "file", "right side is the on-disk working copy");
+    assert.match(uris.left.toString(), new RegExp(`diffr://commit/${shas.first}/`));
+    assert.match(uris.right.fsPath.replace(/\\/g, "/"), /\/[^/]+$/);
+    assert.match(labelStrings(diffTab), new RegExp(`^${shas.first.slice(0, 7)} ↔ Working Copy — `));
+    assert.doesNotMatch(labelStrings(diffTab), /git/, "the literal 'git' must never leak into the title");
+    assert.equal(allDiffTabs().length, before + 1, "exactly one diff tab opened");
+
+    await dismissQuickPick();
+    await flow;
+  });
+
+  it("compareWith [graph]: provider+historyItem → SideB=pick branch/tag → picks v0.1.0 → diff vs that ref", async () => {
+    const shas = readSeedShas();
+    const flow = vscode.commands.executeCommand(COMMAND_IDS.compareWith, ...scmHistoryArgs(shas.third, [shas.second]));
+
+    // SideBPicker item 4 = "Pick a branch or tag…" → moveNext × 3
+    await moveAndAccept(3);
+    // RefPicker (current branch `main` excluded): feature first, v0.1.0 second
+    await moveAndAccept(1);
+    // FilePicker
+    await accept();
+
+    const diffTab = await waitForDiffTab();
+    const uris = tabInputUris(diffTab);
+    assert.equal(uris.left.scheme, "diffr");
+    assert.equal(uris.right.scheme, "diffr");
+    assert.match(uris.left.toString(), new RegExp(`diffr://commit/${shas.third}/`));
+    assert.match(uris.right.toString(), new RegExp(`diffr://commit/${shas.second}/`));
+    assert.match(labelStrings(diffTab), new RegExp(`^${shas.third.slice(0, 7)} ↔ ${shas.second.slice(0, 7)} — `));
+
+    await dismissQuickPick();
+    await flow;
+  });
+
+  it("compareWithWorkingCopy [graph]: provider+historyItem → straight to FilePicker → diff vs working copy", async () => {
+    const shas = readSeedShas();
+    const before = allDiffTabs().length;
+    const flow = vscode.commands.executeCommand(
+      COMMAND_IDS.compareWithWorkingCopy,
+      ...scmHistoryArgs(shas.second, [shas.first])
+    );
+
+    // No SideBPicker; FilePicker opens directly
+    await accept();
+
+    const diffTab = await waitForDiffTab();
+    const uris = tabInputUris(diffTab);
+    assert.equal(uris.left.scheme, "diffr");
+    assert.equal(uris.right.scheme, "file");
+    assert.match(uris.left.toString(), new RegExp(`diffr://commit/${shas.second}/`));
+    assert.match(labelStrings(diffTab), new RegExp(`^${shas.second.slice(0, 7)} ↔ Working Copy — `));
+    assert.equal(allDiffTabs().length, before + 1, "exactly one diff tab opened");
+
+    await dismissQuickPick();
+    await flow;
+  });
+
+  it("compareWithPrevious [graph]: provider+historyItem(sha3) → diffs against parent (sha2)", async () => {
+    const shas = readSeedShas();
+    const flow = vscode.commands.executeCommand(
+      COMMAND_IDS.compareWithPrevious,
+      ...scmHistoryArgs(shas.third, [shas.second])
+    );
+
+    // FilePicker (parent resolved without any prompt)
+    await accept();
+
+    const diffTab = await waitForDiffTab();
+    const uris = tabInputUris(diffTab);
+    assert.equal(uris.left.scheme, "diffr");
+    assert.equal(uris.right.scheme, "diffr");
+    assert.match(uris.left.toString(), new RegExp(`diffr://commit/${shas.third}/`));
+    assert.match(uris.right.toString(), new RegExp(`diffr://commit/${shas.second}/`));
+    assert.match(labelStrings(diffTab), new RegExp(`^${shas.third.slice(0, 7)} ↔ ${shas.second.slice(0, 7)} — `));
+
+    await dismissQuickPick();
+    await flow;
+  });
+
+  it("compareWithBranch [graph]: provider+historyItem → branch RefPicker hides `main` → diff vs feature(sha2)", async () => {
+    const shas = readSeedShas();
+    const flow = vscode.commands.executeCommand(COMMAND_IDS.compareWithBranch, ...scmHistoryArgs(shas.first, []));
+
+    // RefPicker (branch filter): `main` hidden → only `feature` (at sha2)
+    await accept();
+    // FilePicker
+    await accept();
+
+    const diffTab = await waitForDiffTab();
+    const uris = tabInputUris(diffTab);
+    assert.equal(uris.left.scheme, "diffr");
+    assert.equal(uris.right.scheme, "diffr");
+    assert.match(uris.left.toString(), new RegExp(`diffr://commit/${shas.first}/`));
+    assert.match(uris.right.toString(), new RegExp(`diffr://commit/${shas.second}/`));
+    assert.match(labelStrings(diffTab), new RegExp(`^${shas.first.slice(0, 7)} ↔ ${shas.second.slice(0, 7)} — `));
+
+    await dismissQuickPick();
+    await flow;
+  });
+
+  it("compareWithTag [graph]: provider+historyItem → tag RefPicker → diff vs v0.1.0(sha2)", async () => {
+    const shas = readSeedShas();
+    const flow = vscode.commands.executeCommand(COMMAND_IDS.compareWithTag, ...scmHistoryArgs(shas.first, []));
+
+    // RefPicker (tag filter): only `v0.1.0` (at sha2)
+    await accept();
+    // FilePicker
+    await accept();
+
+    const diffTab = await waitForDiffTab();
+    const uris = tabInputUris(diffTab);
+    assert.equal(uris.left.scheme, "diffr");
+    assert.equal(uris.right.scheme, "diffr");
+    assert.match(uris.left.toString(), new RegExp(`diffr://commit/${shas.first}/`));
+    assert.match(uris.right.toString(), new RegExp(`diffr://commit/${shas.second}/`));
+    assert.match(labelStrings(diffTab), new RegExp(`^${shas.first.slice(0, 7)} ↔ ${shas.second.slice(0, 7)} — `));
+
+    await dismissQuickPick();
+    await flow;
   });
 });
