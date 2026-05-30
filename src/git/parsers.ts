@@ -1,4 +1,12 @@
-import { CHANGED_FILE_STATUSES, GIT_ERROR_KINDS, LF, NUL, REF_PREFIX_HEADS, REF_PREFIX_TAGS, REF_TYPES } from "../constants";
+import {
+  CHANGED_FILE_STATUSES,
+  GIT_ERROR_KINDS,
+  LF,
+  NUL,
+  REF_PREFIX_HEADS,
+  REF_PREFIX_TAGS,
+  REF_TYPES,
+} from "../constants";
 import { type Result, ok, err } from "../result";
 import type { ChangedFile, ChangedFileStatus, Commit, GitError, Ref, RefType } from "./types";
 
