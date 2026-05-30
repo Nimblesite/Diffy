@@ -9,19 +9,16 @@ import { expectErr, expectOk } from "../../result";
 // runner logs at the right level without writing to a real pino sink.
 interface RecordedLog {
   readonly level: string;
-  readonly event: unknown;
 }
 
 const recordingLogger = (): { logger: Logger; entries: RecordedLog[] } => {
   const entries: RecordedLog[] = [];
-  const at =
-    (level: string) =>
-    (_fields: object, event?: unknown): void => {
-      entries.push({ level, event });
-    };
-  // Safe: GitRunner only ever calls .debug/.warn with (fields, event); this stub
-  // implements exactly those call signatures, so the double cast to pino's Logger
-  // is sound for the runner's usage even though it is not a full pino instance.
+  const at = (level: string) => (): void => {
+    entries.push({ level });
+  };
+  // GitRunner only ever calls .debug and .warn; this stub supplies all five
+  // level methods so the structural cast to pino's Logger is sound for the
+  // runner's usage even though it is not a real pino instance.
   const logger = {
     trace: at("trace"),
     debug: at("debug"),
@@ -32,6 +29,8 @@ const recordingLogger = (): { logger: Logger; entries: RecordedLog[] } => {
   return { logger, entries };
 };
 
+const loggedAt = (entries: readonly RecordedLog[], level: string): boolean => entries.some((e) => e.level === level);
+
 describe("createGitRunner.run", () => {
   it("returns ok(stdout) for a zero-exit invocation (git --version)", async () => {
     const { logger, entries } = recordingLogger();
@@ -39,10 +38,7 @@ describe("createGitRunner.run", () => {
     const r = await runner.run({ args: ["--version"], cwd: process.cwd() });
     expectOk(r);
     assert.match(r.value, /git version/);
-    assert.ok(
-      entries.some((e) => e.level === "debug"),
-      "start and end are logged at debug"
-    );
+    assert.ok(loggedAt(entries, "debug"), "start and end are logged at debug");
   });
 
   it("returns a nonZeroExit error with stderr and exit code for a failing command", async () => {
@@ -52,7 +48,8 @@ describe("createGitRunner.run", () => {
     const r = await runner.run({ args: ["rev-parse", "--verify", "HEAD"], cwd: tmpdir() });
     expectErr(r);
     assert.equal(r.error.kind, GIT_ERROR_KINDS.nonZeroExit);
-    assert.ok(typeof r.error.exitCode === "number" && r.error.exitCode > 0, "carries the non-zero exit code");
+    const code = r.error.exitCode;
+    assert.ok(typeof code === "number" && code > 0, "carries the non-zero exit code");
     assert.match(r.error.message, /git rev-parse exited/);
   });
 
@@ -64,9 +61,6 @@ describe("createGitRunner.run", () => {
     const r = await runner.run({ args: ["--version"], cwd: "/no/such/dir/diffr-spawn-fail" });
     expectErr(r);
     assert.equal(r.error.kind, GIT_ERROR_KINDS.spawnFailed);
-    assert.ok(
-      entries.some((e) => e.level === "warn"),
-      "spawn failure is logged at warn"
-    );
+    assert.ok(loggedAt(entries, "warn"), "spawn failure is logged at warn");
   });
 });

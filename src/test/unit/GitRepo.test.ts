@@ -25,6 +25,16 @@ const fakeRunner = (result: Result<string, GitError>): RecordingRunner => {
   };
 };
 
+// `.at(0)` always yields `GitRunArgs | undefined`, so the existence guard is a
+// real (not redundant) condition for both tsc and eslint; after it the call
+// narrows to a defined value the test can read directly.
+const onlyCall = (runner: RecordingRunner): GitRunArgs => {
+  const call = runner.calls.at(0);
+  assert.ok(call, "the git runner was invoked exactly once");
+  assert.equal(runner.calls.length, 1, "the git runner was invoked exactly once");
+  return call;
+};
+
 const NONZERO: GitError = {
   kind: GIT_ERROR_KINDS.nonZeroExit,
   message: "git boom",
@@ -32,32 +42,37 @@ const NONZERO: GitError = {
   exitCode: 1,
 };
 
-const commitRecord = `sha1${NUL}sha1abc${NUL}Alice${NUL}1700000000${NUL}init${NUL}`;
+const aliceCommit = {
+  sha: "sha1",
+  shortSha: "sha1abc",
+  author: "Alice",
+  authorTime: 1700000000,
+  subject: "init",
+};
+const aliceRecord = `${aliceCommit.sha}${NUL}${aliceCommit.shortSha}${NUL}${aliceCommit.author}${NUL}1700000000${NUL}${aliceCommit.subject}${NUL}`;
 
 describe("createGitRepo.log", () => {
   it("passes the default limit and log format, parsing one commit", async () => {
-    const runner = fakeRunner(ok(commitRecord));
+    const runner = fakeRunner(ok(aliceRecord));
     const repo = createGitRepo({ runner, cwd: "/repo" });
     const r = await repo.log();
     expectOk(r);
-    assert.equal(r.value.length, 1);
-    assert.equal(r.value[0]?.sha, "sha1");
-    assert.equal(r.value[0]?.author, "Alice");
-    const args = runner.calls[0]?.args ?? [];
-    assert.equal(args[0], "log");
-    assert.ok(args.includes(`--max-count=${DEFAULT_LOG_LIMIT.toString()}`), "default limit is used");
-    assert.ok(args.includes("-z"), "NUL-delimited output requested");
-    assert.equal(runner.calls[0]?.cwd, "/repo");
+    assert.deepEqual(r.value, [aliceCommit]);
+    const call = onlyCall(runner);
+    assert.equal(call.args[0], "log");
+    assert.ok(call.args.includes(`--max-count=${DEFAULT_LOG_LIMIT.toString()}`), "default limit is used");
+    assert.ok(call.args.includes("-z"), "NUL-delimited output requested");
+    assert.equal(call.cwd, "/repo");
   });
 
   it("appends an explicit ref and honours a custom limit", async () => {
-    const runner = fakeRunner(ok(commitRecord));
+    const runner = fakeRunner(ok(aliceRecord));
     const repo = createGitRepo({ runner, cwd: "/repo" });
     const r = await repo.log({ limit: 5, ref: "feature" });
     expectOk(r);
-    const args = runner.calls[0]?.args ?? [];
-    assert.ok(args.includes("--max-count=5"), "custom limit forwarded");
-    assert.equal(args[args.length - 1], "feature", "ref is the final argument");
+    const call = onlyCall(runner);
+    assert.ok(call.args.includes("--max-count=5"), "custom limit forwarded");
+    assert.equal(call.args[call.args.length - 1], "feature", "ref is the final argument");
   });
 
   it("propagates a runner error untouched", async () => {
@@ -78,7 +93,7 @@ describe("createGitRepo.nameStatus", () => {
     const r = await repo.nameStatus({ from, to: { kind: REV_KINDS.commit, sha: "bbb" } });
     expectOk(r);
     assert.deepEqual(r.value, [{ status: "M", path: "a.txt" }]);
-    const args = runner.calls[0]?.args ?? [];
+    const { args } = onlyCall(runner);
     assert.ok(args.includes("--name-status"), "name-status requested");
     assert.equal(args[args.length - 2], "aaa");
     assert.equal(args[args.length - 1], "bbb");
@@ -89,7 +104,8 @@ describe("createGitRepo.nameStatus", () => {
     const repo = createGitRepo({ runner, cwd: "/repo" });
     const r = await repo.nameStatus({ from, to: { kind: REV_KINDS.workingCopy } });
     expectOk(r);
-    const args = runner.calls[0]?.args ?? [];
+    assert.deepEqual(r.value, [{ status: "A", path: "new.txt" }]);
+    const { args } = onlyCall(runner);
     assert.equal(args[args.length - 1], "aaa", "working-copy diff ends with side A only");
     assert.ok(!args.includes("--cached"), "working copy is not the index");
   });
@@ -99,7 +115,8 @@ describe("createGitRepo.nameStatus", () => {
     const repo = createGitRepo({ runner, cwd: "/repo" });
     const r = await repo.nameStatus({ from, to: { kind: REV_KINDS.index } });
     expectOk(r);
-    const args = runner.calls[0]?.args ?? [];
+    assert.deepEqual(r.value, [{ status: "D", path: "gone.txt" }]);
+    const { args } = onlyCall(runner);
     assert.equal(args[args.length - 1], "--cached", "index diff is staged against side A");
     assert.equal(args[args.length - 2], "aaa");
   });
@@ -120,7 +137,7 @@ describe("createGitRepo.show", () => {
     const r = await repo.show({ rev: { kind: REV_KINDS.commit, sha: "deadbee" }, path: "dir/a.txt" });
     expectOk(r);
     assert.equal(r.value, "file contents");
-    assert.deepEqual(runner.calls[0]?.args, ["show", "deadbee:dir/a.txt"]);
+    assert.deepEqual(onlyCall(runner).args, ["show", "deadbee:dir/a.txt"]);
   });
 
   it("addresses an indexed blob as :<path>", async () => {
@@ -128,7 +145,7 @@ describe("createGitRepo.show", () => {
     const repo = createGitRepo({ runner, cwd: "/repo" });
     const r = await repo.show({ rev: { kind: REV_KINDS.index }, path: "a.txt" });
     expectOk(r);
-    assert.deepEqual(runner.calls[0]?.args, ["show", ":a.txt"]);
+    assert.deepEqual(onlyCall(runner).args, ["show", ":a.txt"]);
   });
 });
 
@@ -138,9 +155,8 @@ describe("createGitRepo.refs", () => {
     const repo = createGitRepo({ runner, cwd: "/repo" });
     const r = await repo.refs();
     expectOk(r);
-    assert.equal(r.value.length, 1);
-    assert.equal(r.value[0]?.name, "main");
-    assert.equal(runner.calls[0]?.args[0], "for-each-ref");
+    assert.deepEqual(r.value, [{ name: "main", fullName: "refs/heads/main", sha: "abc1234", type: "branch" }]);
+    assert.equal(onlyCall(runner).args[0], "for-each-ref");
   });
 
   it("propagates a runner error untouched", async () => {
@@ -158,7 +174,7 @@ describe("createGitRepo.revParse", () => {
     const r = await repo.revParse("HEAD");
     expectOk(r);
     assert.equal(r.value, "abc123def");
-    assert.deepEqual(runner.calls[0]?.args, ["rev-parse", "--verify", "HEAD"]);
+    assert.deepEqual(onlyCall(runner).args, ["rev-parse", "--verify", "HEAD"]);
   });
 
   it("errors when git returns empty output", async () => {
@@ -186,7 +202,7 @@ describe("createGitRepo.currentBranch", () => {
     const r = await repo.currentBranch();
     expectOk(r);
     assert.equal(r.value, "feature");
-    assert.deepEqual(runner.calls[0]?.args, ["branch", "--show-current"]);
+    assert.deepEqual(onlyCall(runner).args, ["branch", "--show-current"]);
   });
 
   it("returns undefined for a detached HEAD (empty output)", async () => {
